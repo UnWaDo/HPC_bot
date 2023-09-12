@@ -36,11 +36,11 @@ def create_calculation_path(calculation: Calculation) -> str:
 
 
 def select_cluster(
-        extension: str,
-        command: str = None
-    ) -> Tuple[Cluster, Runner, List[str]]:
+    extension: str,
+    command: str = None
+) -> Tuple[Cluster, Runner, List[str]]:
 
-    clusters = [] # type: List[Tuple[Cluster, Runner]]
+    clusters = []  # type: List[Tuple[Cluster, Runner]]
 
     for cluster in config.clusters:
         runner = cluster.get_runner_by_extension(extension)
@@ -49,7 +49,7 @@ def select_cluster(
 
     if len(clusters) == 0:
         return None, None, None
-    
+
     cluster, runner = clusters[0]
 
     if command is not None:
@@ -61,12 +61,12 @@ def select_cluster(
 
 
 def start_calculation(
-        path: str,
-        calculation: Calculation,
-        cluster: Cluster,
-        runner: Runner,
-        args: List[str] = None
-    ):
+    path: str,
+    calculation: Calculation,
+    cluster: Cluster,
+    runner: Runner,
+    args: List[str] = None
+):
 
     remote_path = cluster.upload_file(
         local_path=path,

@@ -9,11 +9,10 @@ class Organization(BaseDBModel):
     abbreviation = CharField(15)
 
     parent = ForeignKeyField(
-        model = 'self',
-        backref = 'child',
-        null = True
+        model='self',
+        backref='child',
+        null=True
     )
-
 
     @staticmethod
     def find_similar(name: str) -> List['Organization']:

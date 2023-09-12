@@ -9,7 +9,8 @@ from .utils import log_message, create_user_link, get_str_from_re
 from ..utils import config
 from ..models import TelegramUser, UnauthorizedAccessError, Person
 from ..models import User as UserModel
-from ..hpc.manager import create_calculation_path, start_calculation, select_cluster
+from ..hpc.manager import create_calculation_path, start_calculation
+from ..hpc.manager import select_cluster
 from ..models import SubmitType, Calculation, CalculationLimitExceeded
 
 
@@ -33,7 +34,8 @@ HELP_MESSAGE = (
     'Бот создан <a href="theorchem.ru">'
     'Группой теоретической химии №24 ИОХ РАН</a>, '
     'для постановки в очередь отправьте файл с параметрами расчёта '
-    'и опционально укажите аргументы (аргумент {{}} будет заменён на название файла)\n\n'
+    'и опционально укажите аргументы '
+    '(аргумент {{}} будет заменён на название файла)\n\n'
     'Доступные кластеры и их команды перечислены ниже\n{clusters}'
 )
 NOT_ALLOWED_RESPONSE = (
@@ -104,9 +106,15 @@ UNREOGNIZED_COMMAND = (
     'отправьте /help'
 )
 
-async def is_authorized(message: Message, apply_join: bool = False) -> TelegramUser:
+
+async def is_authorized(
+        message: Message,
+        apply_join: bool = False
+) -> TelegramUser:
+
     try:
-        return TelegramUser.authenticate(message.from_user.id, apply_join=apply_join)
+        return TelegramUser.authenticate(
+            message.from_user.id, apply_join=apply_join)
 
     except UnauthorizedAccessError:
         pass
@@ -149,7 +157,8 @@ async def parse_file(message: Message):
         return
 
     file_id = message.document.file_id
-    basename, ext = os.path.splitext(os.path.basename(message.document.file_name))
+    basename, ext = os.path.splitext(
+        os.path.basename(message.document.file_name))
 
     cluster, runner, args = select_cluster(ext)
 
@@ -192,7 +201,7 @@ async def parse_file(message: Message):
         runner=runner,
         args=args
     )
-    
+
     await message.reply(RUN_MESSAGE.format(program=runner.program))
 
     await log_message(
@@ -215,7 +224,7 @@ async def update_data(message: Message):
         await message.answer(UPDATE_HELP_MESSAGE)
         return
 
-    person = tg_user.user.person # type: Person
+    person = tg_user.user.person  # type: Person
     if person.approved:
         await message.answer(UPDATE_ALREADY_APPROVED)
         return

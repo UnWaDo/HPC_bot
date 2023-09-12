@@ -20,6 +20,7 @@ CALCULATION_FINISHED_LOG = (
     'Результаты расчёта доступны по <a href="{link}">ссылке</a>'
 )
 
+
 async def notify_on_finished(bot: Bot):
     calculations: List[Calculation] = (
         Calculation.select(
@@ -28,10 +29,11 @@ async def notify_on_finished(bot: Bot):
         .join(Cluster).switch(Calculation)
         .join(UserModel)
         .join(TelegramUserModel)
-        .where((Calculation.status == CalculationStatus.CLOUDED.value) & 
-                (Calculation.submit_type == SubmitType.TELEGRAM.value))
+        .where((Calculation.status == CalculationStatus.CLOUDED.value) &
+               (Calculation.submit_type == SubmitType.TELEGRAM.value))
     )
-    users: List[TelegramUserModel] = [calc.user.tg_user[0] for calc in calculations]
+    users: List[TelegramUserModel] = [calc.user.tg_user[0]
+                                      for calc in calculations]
 
     updated = []
     for calc, user in zip(calculations, users):

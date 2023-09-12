@@ -28,7 +28,6 @@ class Connection(BaseModel):
     sftp_client: Optional[SFTPClient] = None
     webdav_client: Optional[WebdavClient] = None
 
-
     def open_ssh(self) -> SSHClient:
         if self.ssh_client is not None:
             self.ssh_client.close()
@@ -60,7 +59,6 @@ class Connection(BaseModel):
 
         return self.ssh_client
 
-
     def open_sftp(self) -> SFTPClient:
         if self.sftp_client is not None:
             self.sftp_client.close()
@@ -68,7 +66,6 @@ class Connection(BaseModel):
         ssh = self.get_ssh_client()
         self.sftp_client = ssh.open_sftp()
         return self.sftp_client
-
 
     def open_webdav(self) -> WebdavClient:
         if self.key_path:
@@ -89,31 +86,26 @@ class Connection(BaseModel):
         }
         return WebdavClient(options)
 
-
     def is_ssh_active(self) -> bool:
         if self.ssh_client is None:
             return False
         transport = self.ssh_client.get_transport()
         return (transport is not None) and transport.is_alive()
 
-
     def get_ssh_client(self) -> SSHClient:
         if self.is_ssh_active():
             return self.ssh_client
         return self.open_ssh()
-
 
     def get_sftp_client(self) -> SFTPClient:
         if self.sftp_client is None or not self.is_ssh_active():
             return self.open_sftp()
         return self.sftp_client
 
-
     def get_webdav_client(self) -> WebdavClient:
         if self.webdav_client is None:
             return self.open_webdav()
         return self.webdav_client
-
 
     def execute_by_ssh(self, command: str) -> Tuple[str, str]:
         ssh = self.get_ssh_client()
@@ -123,8 +115,7 @@ class Connection(BaseModel):
 
         return ''.join(stdout.readlines()), ''.join(stderr.readlines())
 
-
-    def get_by_sftp(self, remote_path: str, local_path: str, recurse = True):
+    def get_by_sftp(self, remote_path: str, local_path: str, recurse=True):
         sftp = self.get_sftp_client()
 
         logging.debug(f'sftp get from {remote_path} to {local_path}')
@@ -155,8 +146,7 @@ class Connection(BaseModel):
                 )
             )
 
-
-    def mkdir_by_sftp(self, remote_path: str, recurse = False):
+    def mkdir_by_sftp(self, remote_path: str, recurse=False):
         sftp = self.get_sftp_client()
 
         logging.debug(f'sftp mkdir {remote_path}')
@@ -173,8 +163,7 @@ class Connection(BaseModel):
                 self.mkdir_by_sftp(dirname, recurse)
             sftp.mkdir(remote_path)
 
-
-    def mkdir_by_webdav(self, remote_path: str, recurse = False):
+    def mkdir_by_webdav(self, remote_path: str, recurse=False):
         webdav = self.get_webdav_client()
 
         logging.debug(f'webdav mkdir {remote_path}')
@@ -192,7 +181,6 @@ class Connection(BaseModel):
             self.mkdir_by_webdav(dirname, recurse)
         webdav.mkdir(remote_path)
 
-
     def is_dir_sftp(self, path: str) -> bool:
         sftp = self.get_sftp_client()
 
@@ -201,7 +189,6 @@ class Connection(BaseModel):
                 return True
         except IOError:
             return False
-
 
     def put_by_sftp(
         self,
@@ -235,7 +222,6 @@ class Connection(BaseModel):
                 remotepath=f'{remote_path}/{file}'
             )
 
-
     def put_by_webdav(self, local_path: str, remote_path: str):
         webdav = self.get_webdav_client()
 
@@ -252,14 +238,13 @@ class Connection(BaseModel):
             remote_path=remote_path
         )
 
-
     def get_request(
         self,
         params: Dict[str, str] = None,
         headers: Dict[str, str] = None,
         endpoint: str = ''
     ) -> requests.Response:
-        
+
         return requests.get(
             f'{self.host}/{endpoint}',
             params=params,
@@ -269,7 +254,6 @@ class Connection(BaseModel):
                 password=self.password.get_secret_value()
             )
         )
-
 
     def post_request(
         self,
@@ -287,7 +271,6 @@ class Connection(BaseModel):
                 password=self.password.get_secret_value()
             )
         )
-
 
     def get_shared_link(self, path: str) -> str:
         r = self.post_request(

@@ -31,12 +31,13 @@ def create_user_link(user: User, model: UserModel = None) -> str:
         name = f'{model.person.first_name} {model.person.last_name}'
 
     return (f'<a href="tg://user?id={user.id}">{name}</a> '
-           f'({identifier})')
+            f'({identifier})')
 
 
-def get_str_from_re(regex: Pattern, string: str, group: int = 0) -> Optional[str]:
+def get_str_from_re(regex: Pattern, string: str,
+                    group: int = 0) -> Optional[str]:
     matched = regex.search(string)
     if matched is None:
         return None
-    
+
     return matched.group(group)

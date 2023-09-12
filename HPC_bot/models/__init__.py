@@ -4,4 +4,5 @@ from .person import Person
 from .user import User
 from .telegram_user import TelegramUser, UnauthorizedAccessError
 from .cluster import Cluster
-from .calculation import Calculation, SubmitType, CalculationStatus, CalculationLimitExceeded
+from .calculation import Calculation, CalculationLimitExceeded
+from .calculation import SubmitType, CalculationStatus

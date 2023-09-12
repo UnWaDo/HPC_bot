@@ -29,24 +29,22 @@ class User(BaseDBModel):
     class Meta:
         table_name = 'hpc_user'
 
-
     @staticmethod
     def register(
-            first_name: str,
-            last_name: str,
-            organization: Organization = None
-        ) -> 'User':
-            person = Person.create(
-                first_name=first_name,
-                last_name=last_name,
-                organization=organization,
-                registered=True
-            )
-            return User.create(
-                calculation_limit=NEWLY_REGISTERED_LIMIT,
-                person=person
-            )
-
+        first_name: str,
+        last_name: str,
+        organization: Organization = None
+    ) -> 'User':
+        person = Person.create(
+            first_name=first_name,
+            last_name=last_name,
+            organization=organization,
+            registered=True
+        )
+        return User.create(
+            calculation_limit=NEWLY_REGISTERED_LIMIT,
+            person=person
+        )
 
     @staticmethod
     def approve(id: int) -> bool:
@@ -55,7 +53,7 @@ class User(BaseDBModel):
         if len(users) == 0:
             return False
 
-        user = users[0] # type: User
+        user = users[0]  # type: User
 
         if user.person.approved:
             return False
@@ -69,11 +67,10 @@ class User(BaseDBModel):
 
         return True
 
-
     def get_calculations(self, since: datetime = None) -> List['Calculation']:
         if since is None:
             return self.calculations
-        
+
         return list(filter(
             lambda x: x.start_datetime >= since,
             self.calculations
