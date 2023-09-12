@@ -71,10 +71,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     os.makedirs(config.download_path, exist_ok=True)
-    logging.basicConfig(
-        level=config.log_level,
-        filename=config.log_file
-    )
     update_db()
     try:
         asyncio.run(main())

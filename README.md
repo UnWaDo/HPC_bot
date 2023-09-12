@@ -11,6 +11,8 @@ pip install -r requirements.txt
 
 For Windows change `. venv/bin/activate` to `.\venv\Scripts\Activate.ps1`
 
+If you want to use MySQL as your database, you should also install corresponding driver with `pip install pymysql` or `pip install mysqlclient`
+
 ## Configuration
 
 Very simple (and not complete) example of config file is given as `conig_example.json`
@@ -26,6 +28,7 @@ Very simple (and not complete) example of config file is given as `conig_example
 - db: PostgreSQL is expected
   - name: database name
   - connection: configuration of database connection
+  - db_type: sqlite, mysql or postgresql. The default is PostgreSQL, so you should install drivers if you intend to use mysql (see Installation section)
 - clusters: list of clusters, properties of which are given below
   - label: name of cluster. Must be consistent with database
   - upload_path: where to store files on a cluster
