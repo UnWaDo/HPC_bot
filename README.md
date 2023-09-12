@@ -83,14 +83,17 @@ Type=simple
 WorkingDirectory=/home/hpc_bot_test/HPC_bot/
 ExecStart=/home/hpc_bot_test/HPC_bot/venv/bin/python /home/hpc_bot_test/HPC_bot/run.py
 
-Restart=always
+Restart=on-failure
 RestartSec=120
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Run `systemctl daemon-reload` to notify `systemd` on the existence of your service and start it with `systemctl start some-name`. You can verify that it is running using `systemctl status some-name`
+Run `systemctl daemon-reload` to notify `systemd` on the existence of your service and start it with `systemctl start some-name`.
+You can verify that it is running using `systemctl status some-name`.
+SELinux prevents access to user directories by services, so be carefull when using systems protected by it
+(one possible workaround is to use a `systemctl --user` option)
 
 You may also want to specify User and Group
 
