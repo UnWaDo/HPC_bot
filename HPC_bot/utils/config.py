@@ -45,6 +45,7 @@ except json.decoder.JSONDecodeError as e:
 
 finally:
     logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
         level=config.log_level,
         filename=config.log_file
     )
