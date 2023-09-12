@@ -1,11 +1,10 @@
-import os
 from aiogram import Router, F
 from aiogram.types import ChatMemberUpdated, Message
-from aiogram.filters import ChatMemberUpdatedFilter, JOIN_TRANSITION, LEAVE_TRANSITION
+from aiogram.filters import ChatMemberUpdatedFilter, JOIN_TRANSITION, LEAVE_TRANSITION, Command
 
 from .utils import log_message, create_user_link
 from ..utils import config
-from ..models import TelegramUser, User
+from ..models import TelegramUser
 
 
 chat_router = Router()
@@ -56,9 +55,7 @@ async def left_chat(event: ChatMemberUpdated):
         text=f'Бот {config.bot.bot_name} удалён из чата {event.chat.full_name}')
 
 
-@chat_router.message(
-    F.text.lower() == 'получить доступ',
-)
+@chat_router.message(Command(commands=['access']))
 async def register(message: Message):
     user = message.from_user
     tg_user = TelegramUser.authenticate(user.id, True)
@@ -80,4 +77,3 @@ async def register(message: Message):
         message.bot,
         f'Новый пользователь {create_user_link(user)}'
     )
-
