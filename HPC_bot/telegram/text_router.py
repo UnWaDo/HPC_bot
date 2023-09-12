@@ -381,7 +381,7 @@ async def block_user(message: Message, command: CommandObject):
         return
 
     await message.answer(BLOCK_OK)
-    await message.bot.send_message(BLOCK_NOTIFY)
+    await message.bot.send_message(user.tg_user[0].tg_id, BLOCK_NOTIFY)
     await log_message(message.bot, BLOCK_LOG.format(
         user=create_user_link(model=user.tg_user[0]),
         admin=create_user_link(message.from_user),
@@ -400,13 +400,13 @@ async def unblock_user(message: Message, command: CommandObject):
         await message.answer(UNBLOCK_HELP)
         return
 
-    user = UserModel.block(idx)
+    user = UserModel.unblock(idx)
     if user is None:
         await message.answer(UNBLOCK_FAILED)
         return
 
     await message.answer(UNBLOCK_OK)
-    await message.bot.send_message(UNBLOCK_NOTIFY)
+    await message.bot.send_message(user.tg_user[0].tg_id, UNBLOCK_NOTIFY)
     await log_message(message.bot, UNBLOCK_LOG.format(
         user=create_user_link(model=user.tg_user[0]),
         admin=create_user_link(message.from_user),
