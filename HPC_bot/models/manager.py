@@ -69,6 +69,6 @@ def get_tg_user_with_calcs(
     if tg_id is not None:
         select.where(TelegramUser.tg_id == tg_id)
     if user_id is not None:
-        select.where(User.tg_id == tg_id)
+        select.where(User.id == user_id)
 
     return select.get_or_none()
