@@ -1,0 +1,27 @@
+{
+  "download_path": "downloads/",
+  "storage": null,
+  "log_level": "DEBUG",
+  "log_file": null,
+  "db": {
+    "name": "hpc_bot.db",
+    "connection": {
+      "host": "localhost",
+      "port": 5432,
+      "user": "postgres",
+      "password": "**********",
+      "key_path": null,
+      "ssh_client": null,
+      "sftp_client": null,
+      "webdav_client": null
+    }
+  },
+  "bot": {
+    "token": null,
+    "admin_name": "@admin",
+    "log_chat_id": null,
+    "log_chat_level": "INFO",
+    "bot_name": null
+  },
+  "clusters": []
+}
