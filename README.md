@@ -2,6 +2,8 @@
 
 ## Installation
 
+Require python3.8+
+
 ```bash
 pip install virtualenv
 python -m venv venv
@@ -11,7 +13,7 @@ pip install -r requirements.txt
 
 For Windows change `. venv/bin/activate` to `.\venv\Scripts\Activate.ps1`
 
-If you want to use MySQL as your database, you should also install corresponding driver with `pip install pymysql` or `pip install mysqlclient`
+It is recommended to use MySQL or PostgreSQL as your database. In this case, you need to install drivers. For PostgreSQL you should run `pip install psycopg2`, for MySQL use `pip install pymysql` or `pip install mysqlclient`.
 
 ## Configuration
 
@@ -25,10 +27,10 @@ Very simple (and not complete) example of config file is given as `conig_example
   - token: Telegram API token
   - admin_name: username of an administrator
   - log_chat_id: *(optional)* id of a chat to send logging messages
-- db: PostgreSQL is expected
+- db: it is not recommended to use default sqlite
   - name: database name
   - connection: configuration of database connection
-  - db_type: sqlite, mysql or postgresql. The default is PostgreSQL, so you should install drivers if you intend to use mysql (see Installation section)
+  - db_type: sqlite, mysql or postgresql. The default is in-memory sqlite database, which is not recommended for production use
 - clusters: list of clusters, properties of which are given below
   - label: name of cluster. Must be consistent with database
   - upload_path: where to store files on a cluster
