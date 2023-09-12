@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import List
 from aiogram import Bot
@@ -57,6 +58,15 @@ async def notify_on_finished(bot: Bot):
             )
             calc.set_status(CalculationStatus.SENDED)
             updated.append(calc)
+
+        except asyncio.CancelledError:
+            if len(updated) > 0:
+                with db.atomic():
+                    Calculation.bulk_update(
+                        updated,
+                        fields=['status']
+                    )
+            raise
 
         except Exception as e:
             logging.error(

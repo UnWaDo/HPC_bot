@@ -79,6 +79,7 @@ Description=Bot for HPC cluster (test version)
 After=syslog.target network.target
 
 [Service]
+Type=simple
 WorkingDirectory=/home/hpc_bot_test/HPC_bot/
 ExecStart=/home/hpc_bot_test/HPC_bot/venv/bin/python /home/hpc_bot_test/HPC_bot/run.py
 
@@ -90,3 +91,10 @@ WantedBy=multi-user.target
 ```
 
 Run `systemctl daemon-reload` to notify `systemd` on the existence of your service and start it with `systemctl start some-name`. You can verify that it is running using `systemctl status some-name`
+
+You may also want to specify User and Group
+
+```
+User=hpc_bot_test
+Group=hpc_bot_test
+```

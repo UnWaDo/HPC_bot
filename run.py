@@ -16,16 +16,16 @@ from HPC_bot.telegram.errors_handling import handle_chat_migration
 from HPC_bot.telegram.manager import notify_on_finished
 
 
-end = False
-
-
 async def cluster_updates(bot: Bot):
-    while not end:
+    while True:
         try:
-            await check_updates()
-            await load_finished()
-            await send_to_cloud()
+            check_updates()
+            load_finished()
+            send_to_cloud()
             await notify_on_finished(bot)
+        except asyncio.CancelledError:
+            break
+
         except Exception as e:
             logging.exception(
                 'Error while handling updates',
@@ -43,8 +43,6 @@ async def cluster_updates(bot: Bot):
 
 
 async def main() -> None:
-    global end
-
     dp = Dispatcher()
     dp.include_router(message_router)
     dp.include_router(chat_router)
@@ -66,9 +64,7 @@ async def main() -> None:
         'chat_member',
         'my_chat_member',
     ])
-    end = True
-
-    await updates
+    updates.cancel()
 
 
 if __name__ == "__main__":
