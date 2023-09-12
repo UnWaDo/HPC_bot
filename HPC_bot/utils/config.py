@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Union
+from typing import List, Tuple, Union
 
 from pydantic import BaseModel, model_validator
 
@@ -18,6 +18,7 @@ class ConfigParseError(ValueError):
 class Config(BaseModel):
     download_path: str = 'downloads/'
     storage: RemoteStorage = None
+    fetch_time: Union[int, Tuple[int, int]] = (120, 240)
 
     log_level: Union[int, str] = 'DEBUG'
     log_file: str = None

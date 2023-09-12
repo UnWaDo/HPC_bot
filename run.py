@@ -17,7 +17,6 @@ from HPC_bot.telegram.manager import notify_on_finished
 
 
 end = False
-WAIT_UPDATE_LIMITS = (5, 20)
 
 
 async def cluster_updates(bot: Bot):
@@ -33,9 +32,12 @@ async def cluster_updates(bot: Bot):
                 exc_info=e,
                 stack_info=True
             )
+        if type(config.fetch_time) == int:
+            await asyncio.sleep(config.fetch_time)
+            continue
         await asyncio.sleep(randint(
-            WAIT_UPDATE_LIMITS[0],
-            WAIT_UPDATE_LIMITS[1]
+            config.fetch_time[0],
+            config.fetch_time[1]
         ))
 
 

@@ -22,6 +22,7 @@ Very simple (and not complete) example of config file is given as `conig_example
 - download_path: path to stored files on local computer
 - storage: remote cloud storage. Currently only Nextcloud is supported
 - log_level: logging level used by `logging` to control output level
+- fetch_time: time in seconds between getting current status from clusters. Can be given two integeres to make connections more chaotic
 - log_file: *(optional)* path to log file. If not given, logs will be printed to console
 - bot
   - token: Telegram API token
@@ -44,7 +45,7 @@ Very simple (and not complete) example of config file is given as `conig_example
 
 ## Run
 
-Migrate database (never do this if you are restarting production application). It requires adding `organization.csv` table with columns `label`, `name`, `alias` and `parent` to the root folder, containing required organizations.
+Migrate database (never do this if you are restarting production application). It requires adding `organizations.csv` table with columns `label`, `name`, `alias` and `parent` to the root folder, containing required organizations.
 
 ```bash
 python migrate.py
@@ -65,3 +66,27 @@ Testing can be started with `pytest`. Code style may be checked by `pycodestyle 
 Bot can be added to any group by its administrator. Any person in these groups may write to bot in order to get access to calculations. By default, newly registered users are given 5 calculations per month
 
 User can specify its name, surname and organization using `/upd` command. When data is correct, administrator can approve it by sending `/approve` command. After this, user recieve 25 calculations per month
+
+## Running as a service
+
+If you want to run the bot on a more reliable basis than `nohup` or `screen`, you may add it to `systemd`
+
+Create `/etc/systemd/system/some-name.service` file with the following content
+
+```
+[Unit]
+Description=Bot for HPC cluster (test version)
+After=syslog.target network.target
+
+[Service]
+WorkingDirectory=/home/hpc_bot_test/HPC_bot/
+ExecStart=/home/hpc_bot_test/HPC_bot/venv/bin/python /home/hpc_bot_test/HPC_bot/run.py
+
+Restart=always
+RestartSec=120
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Run `systemctl daemon-reload` to notify `systemd` on the existence of your service and start it with `systemctl start some-name`. You can verify that it is running using `systemctl status some-name`
