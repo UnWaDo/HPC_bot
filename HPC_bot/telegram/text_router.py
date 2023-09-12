@@ -353,9 +353,12 @@ async def approve_data(message: Message, command: CommandObject):
         return
 
     await message.answer(APPROVE_OK)
-    await message.bot.send_message(APPROVE_NOTIFY.format(
-        calc_limit=user.calculation_limit
-    ))
+    await message.bot.send_message(
+        user.tg_user[0].tg_id,
+        APPROVE_NOTIFY.format(
+            calc_limit=user.calculation_limit
+        )
+    )
     await log_message(message.bot, APPROVE_LOG.format(
         user=create_user_link(model=user.tg_user[0]),
         admin=create_user_link(message.from_user),
@@ -423,9 +426,11 @@ async def list_users(message: Message):
 
     await message.answer(LIST_USERS.format(
         users='\n'.join([
-            f'{create_user_link(model=u)} - '
+            f'{i + 1}. {create_user_link(model=u)} - '
             f'{u.user.calculation_limit} - {u.num_calc}'
-            for u in users
+            for i, u in enumerate(
+                sorted(users, key=lambda x: x.num_calc, reverse=True)
+            )
         ])
     ))
 

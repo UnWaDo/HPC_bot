@@ -10,7 +10,7 @@ class Organization(BaseDBModel):
 
     parent = ForeignKeyField(
         model='self',
-        backref='child',
+        backref='children',
         null=True
     )
 

@@ -79,8 +79,7 @@ class User(BaseDBModel):
             return None
 
         user.blocked = True
-        with db.atomic():
-            user.save()
+        user.save()
 
         return user
 
@@ -91,12 +90,11 @@ class User(BaseDBModel):
         except DoesNotExist:
             return None
 
-        if user.blocked:
+        if not user.blocked:
             return None
 
-        user.blocked = True
-        with db.atomic():
-            user.save()
+        user.blocked = False
+        user.save()
 
         return user
 

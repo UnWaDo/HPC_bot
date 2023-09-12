@@ -18,7 +18,7 @@ if config.db.db_type == DatabaseTypes.SQLITE:
     db = SqliteDatabase(config.db.name)
 elif config.db.db_type == DatabaseTypes.MYSQL:
     logging.info('DB type is MySQL')
-    db = MySQLDatabase(**parameters)
+    db = MySQLDatabase(charset='utf8', **parameters)
 else:
     if config.db.db_type != DatabaseTypes.POSTGRESQL:
         logging.warning('Unrecognized db type, selecting PostgreSQL')
