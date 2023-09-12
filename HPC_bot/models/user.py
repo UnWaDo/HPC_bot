@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, TYPE_CHECKING
 from peewee import IntegerField, ForeignKeyField, BooleanField, Check
+from peewee import DoesNotExist
 
 
 from .base_model import db, BaseDBModel
@@ -47,16 +48,16 @@ class User(BaseDBModel):
         )
 
     @staticmethod
-    def approve(id: int) -> bool:
+    def approve(id: int) -> 'User':
         users = User.select(User, Person).join(Person).where(User.id == id)
 
         if len(users) == 0:
-            return False
+            return None
 
         user = users[0]  # type: User
 
         if user.person.approved:
-            return False
+            return None
 
         user.person.approved = True
         user.calculation_limit = APPROVED_BASE_LIMIT
@@ -65,7 +66,39 @@ class User(BaseDBModel):
             user.person.save()
             user.save()
 
-        return True
+        return user
+
+    @staticmethod
+    def block(id: int) -> 'User':
+        try:
+            user = User.get_by_id(id)  # type: User
+        except DoesNotExist:
+            return None
+
+        if user.blocked:
+            return None
+
+        user.blocked = True
+        with db.atomic():
+            user.save()
+
+        return user
+
+    @staticmethod
+    def unblock(id: int) -> 'User':
+        try:
+            user = User.get_by_id(id)  # type: User
+        except DoesNotExist:
+            return None
+
+        if user.blocked:
+            return None
+
+        user.blocked = True
+        with db.atomic():
+            user.save()
+
+        return user
 
     def get_calculations(self, since: datetime = None) -> List['Calculation']:
         if since is None:

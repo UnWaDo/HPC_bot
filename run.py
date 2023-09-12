@@ -9,7 +9,8 @@ from aiogram.exceptions import TelegramMigrateToChat
 from aiogram.filters import ExceptionTypeFilter
 
 from HPC_bot.utils import config
-from HPC_bot.hpc.manager import update_db, check_updates, load_finished, send_to_cloud
+from HPC_bot.hpc.manager import update_db, check_updates
+from HPC_bot.hpc.manager import load_finished, send_to_cloud
 from HPC_bot.telegram.text_router import message_router
 from HPC_bot.telegram.chat_router import chat_router
 from HPC_bot.telegram.errors_handling import handle_chat_migration
@@ -32,14 +33,13 @@ async def cluster_updates(bot: Bot):
                 exc_info=e,
                 stack_info=True
             )
-        if type(config.fetch_time) == int:
+        if type(config.fetch_time) is int:
             await asyncio.sleep(config.fetch_time)
             continue
         await asyncio.sleep(randint(
             config.fetch_time[0],
             config.fetch_time[1]
         ))
-
 
 
 async def main() -> None:

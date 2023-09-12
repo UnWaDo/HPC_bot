@@ -52,7 +52,7 @@ async def notify_on_finished(bot: Bot):
                 text=CALCULATION_FINISHED_LOG.format(
                     user=create_user_link(
                         user=message.chat,
-                        model=calc.user
+                        model=user
                     ),
                     name=calc.name,
                     link=link

@@ -39,6 +39,10 @@ class CalculationLimitExceeded(Exception):
     pass
 
 
+class BlockedException(Exception):
+    pass
+
+
 class Calculation(BaseDBModel):
     name = CharField(50)
     start_datetime = DateTimeField()
@@ -66,6 +70,10 @@ class Calculation(BaseDBModel):
         cluster: ClusterHPC
     ) -> 'Calculation':
 
+        if user.blocked:
+            raise BlockedException(
+                f'User #{user.id} is blocked'
+            )
         if len(user.get_calculations(
             get_month_start())
         ) > user.calculation_limit:
