@@ -154,7 +154,7 @@ LIST_USERS = (
     '{users}'
 )
 USER_STATUS = (
-    'Пользователь {first_name} {last_name} из {organization}\n'
+    'Пользователь {first_name} {last_name} из организации {organization}\n'
     'Месячный лимит расчётов: {limit}, израсходовано {used}'
 )
 STATUS_HELP = (
@@ -343,7 +343,7 @@ async def approve_data(message: Message, command: CommandObject):
 
     try:
         idx = int(command.args)
-    except ValueError:
+    except (ValueError, TypeError):
         await message.answer(APPROVE_HELP)
         return
 
@@ -371,7 +371,7 @@ async def block_user(message: Message, command: CommandObject):
 
     try:
         idx = int(command.args)
-    except ValueError:
+    except (ValueError, TypeError):
         await message.answer(BLOCK_HELP)
         return
 
@@ -396,7 +396,7 @@ async def unblock_user(message: Message, command: CommandObject):
 
     try:
         idx = int(command.args)
-    except ValueError:
+    except (ValueError, TypeError):
         await message.answer(UNBLOCK_HELP)
         return
 
@@ -440,7 +440,7 @@ async def user_status(message: Message, command: CommandObject):
             return
         try:
             idx = int(command.args)
-        except ValueError:
+        except (ValueError, TypeError):
             await message.answer(STATUS_HELP)
             return
         user = get_tg_user_with_calcs(
@@ -457,9 +457,16 @@ async def user_status(message: Message, command: CommandObject):
             await not_authorized(message.from_user, message.bot)
             return
 
+    org = user.user.person.organization
+    if org is None:
+        org_name = '(неизвестно)'
+    else:
+        org_name = org.name
+
     await message.answer(USER_STATUS.format(
         first_name=user.user.person.first_name,
         last_name=user.user.person.last_name,
+        organization=org_name,
         limit=user.user.calculation_limit,
         used=user.num_calc
     ))

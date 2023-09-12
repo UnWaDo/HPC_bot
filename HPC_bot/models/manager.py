@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from peewee import fn, JOIN
 from typing import Iterable, Union
 
-from . import User, TelegramUser, Person, Calculation
+from . import User, TelegramUser, Person, Calculation, Organization
 from .user import User
 
 
@@ -53,10 +53,12 @@ def get_tg_user_with_calcs(
             TelegramUser,
             User,
             Person,
+            Organization,
             fn.COUNT(calculations.c.id).alias('num_calc')
         )
         .join(User)
         .join(Person)
+        .join(Organization, JOIN.LEFT_OUTER)
         .join(
             calculations,
             JOIN.LEFT_OUTER,

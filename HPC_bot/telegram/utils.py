@@ -33,7 +33,7 @@ def create_user_link(user: User = None, model: TgUserModel = None) -> str:
     if user is not None:
         tg_id = user.id
     else:
-        tg_id = model.id
+        tg_id = model.tg_id
 
     identifiers = []
     if user is not None:
@@ -43,7 +43,7 @@ def create_user_link(user: User = None, model: TgUserModel = None) -> str:
 
     identifier = ', '.join(identifiers)
 
-    if model is None or not model.user.person.approved:
+    if user is not None and (model is None or not model.user.person.approved):
         name = user.full_name
     else:
         name = f'{model.user.person.first_name} {model.user.person.last_name}'
