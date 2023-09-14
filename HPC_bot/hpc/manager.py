@@ -87,6 +87,11 @@ def start_calculation(
 
     matched = SLURM_ID_RE.search(stdout)
     if matched is None:
+        logging.warning(
+            'No slurm id returned '
+            f'while setting up calculation #{calculation.id} '
+            f'({path}).'
+            'Output is {stdout}')
         return
 
     slurm_id = int(matched.group(1))

@@ -39,12 +39,12 @@ class Runner(BaseModel):
         Runner._validate_args(field, info.data['allowed_args'])
         return field
 
-    def create_command(self, args: List[str]
-                       = None, filename: str = '') -> str:
+    def create_command(self, args: List[str] = None,
+                       filename: str = '') -> str:
         if args is not None:
             self.validate_args(args)
         else:
-            args = self.default_args
+            args = self.default_args.copy()
 
         for i, arg in enumerate(args):
             if arg == '{}':
