@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional, Union
+from typing import List, Tuple, Union
 
 from pydantic import BaseModel, model_validator
 
@@ -17,7 +17,8 @@ class ConfigParseError(ValueError):
 
 class Config(BaseModel):
     download_path: str = 'downloads/'
-    storage: RemoteStorage
+    storage: RemoteStorage = None
+    fetch_time: Union[int, Tuple[int, int]] = (120, 240)
 
     log_level: Union[int, str] = 'DEBUG'
     log_file: str = None
@@ -28,14 +29,25 @@ class Config(BaseModel):
     clusters: List[Cluster] = []
 
 
+is_default = True
+config = Config()
+
 try:
     with open(CONFIG_PATH, 'r') as file:
         config = Config.model_validate_json(''.join(file.readlines()))
+    is_default = False
 
 except FileNotFoundError:
-    config = Config()
-    logging.warning('No %s file found, using default config' % CONFIG_PATH)
+    pass
 
 except json.decoder.JSONDecodeError as e:
-    logging.error('Invalid config.json file format', exc_info=e)
     raise ConfigParseError('Invalid config file %s' % CONFIG_PATH)
+
+finally:
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        level=config.log_level,
+        filename=config.log_file
+    )
+    if is_default:
+        logging.warning('No %s file found, using default config' % CONFIG_PATH)

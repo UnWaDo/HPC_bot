@@ -13,12 +13,11 @@ class Person(BaseDBModel):
     approved = BooleanField(default=False)
 
     organization = ForeignKeyField(
-        model = Organization,
-        backref = 'persons',
-        null = True
+        model=Organization,
+        backref='persons',
+        null=True
     )
 
-    
     def update_from_raw_data(
         self,
         first_name: str = None,

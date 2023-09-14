@@ -16,19 +16,13 @@ with open('organizations.csv', 'r', encoding='utf-8') as orgs:
 
     for row in org_reader:
         organizations[row['label']] = Organization(
-            name = row['name'],
-            abbreviation = row['alias'],
-            parent = organizations.get(row['parent'])
+            name=row['name'],
+            abbreviation=row['alias'],
+            parent=organizations.get(row['parent'])
         )
 
 with db.atomic():
-    Organization.bulk_create(organizations.values())
-
-with db.atomic():
-    Organization.bulk_update(list(filter(
-            lambda x: x.parent is not None,
-            organizations.values())),
-        fields = ['parent']
-    )
+    for org in organizations.values():
+        org.save()
 
 db.close()

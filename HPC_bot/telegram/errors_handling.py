@@ -19,8 +19,8 @@ async def handle_chat_migration(event: ErrorEvent):
 
         await event.bot.send_message(
             config.bot.log_chat_id,
-           f'Чат {event.update.message.chat.title} сменил идентификатор '
-           f'с {old_id} на {new_id}. '
+            f'Чат {event.update.message.chat.title} сменил идентификатор '
+            f'с {old_id} на {new_id}. '
             'Не забудьте обновить конфигурационный файл, если это необходимо'
         )
     text = event.update.message.text

@@ -36,11 +36,11 @@ def create_calculation_path(calculation: Calculation) -> str:
 
 
 def select_cluster(
-        extension: str,
-        command: str = None
-    ) -> Tuple[Cluster, Runner, List[str]]:
+    extension: str,
+    command: str = None
+) -> Tuple[Cluster, Runner, List[str]]:
 
-    clusters = [] # type: List[Tuple[Cluster, Runner]]
+    clusters = []  # type: List[Tuple[Cluster, Runner]]
 
     for cluster in config.clusters:
         runner = cluster.get_runner_by_extension(extension)
@@ -49,7 +49,7 @@ def select_cluster(
 
     if len(clusters) == 0:
         return None, None, None
-    
+
     cluster, runner = clusters[0]
 
     if command is not None:
@@ -61,12 +61,12 @@ def select_cluster(
 
 
 def start_calculation(
-        path: str,
-        calculation: Calculation,
-        cluster: Cluster,
-        runner: Runner,
-        args: List[str] = None
-    ):
+    path: str,
+    calculation: Calculation,
+    cluster: Cluster,
+    runner: Runner,
+    args: List[str] = None
+):
 
     remote_path = cluster.upload_file(
         local_path=path,
@@ -109,7 +109,7 @@ def update_db():
         )
 
 
-async def check_updates():
+def check_updates():
     calculations = Calculation.get_unfinished()
 
     cluster_labels = set(c.cluster.label for c in calculations)
@@ -161,7 +161,7 @@ async def check_updates():
             )
 
 
-async def load_finished():
+def load_finished():
     calculations = Calculation.get_by_status(CalculationStatus.FINISHED)
 
     cluster_labels = set(c.cluster.label for c in calculations)
@@ -199,7 +199,7 @@ async def load_finished():
             )
 
 
-async def send_to_cloud():
+def send_to_cloud():
     calculations = Calculation.get_by_status(CalculationStatus.LOADED)
 
     cluster_labels = set(c.cluster.label for c in calculations)

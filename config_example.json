@@ -1,20 +1,25 @@
 {
   "download_path": "downloads/",
   "storage": null,
+  "fetch_time": [
+    120,
+    240
+  ],
   "log_level": "DEBUG",
   "log_file": null,
   "db": {
-    "name": "hpc_bot.db",
+    "name": ":memory:",
     "connection": {
       "host": "localhost",
-      "port": 5432,
-      "user": "postgres",
-      "password": "**********",
+      "port": 80,
+      "user": "",
+      "password": null,
       "key_path": null,
       "ssh_client": null,
       "sftp_client": null,
       "webdav_client": null
-    }
+    },
+    "db_type": "sqlite"
   },
   "bot": {
     "token": null,

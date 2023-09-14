@@ -352,3 +352,4 @@ config.json
 
 .vscode
 organizations.csv
+*.db

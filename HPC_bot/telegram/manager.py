@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import List
 from aiogram import Bot
@@ -19,6 +20,7 @@ CALCULATION_FINISHED_LOG = (
     'Результаты расчёта доступны по <a href="{link}">ссылке</a>'
 )
 
+
 async def notify_on_finished(bot: Bot):
     calculations: List[Calculation] = (
         Calculation.select(
@@ -27,10 +29,11 @@ async def notify_on_finished(bot: Bot):
         .join(Cluster).switch(Calculation)
         .join(UserModel)
         .join(TelegramUserModel)
-        .where((Calculation.status == CalculationStatus.CLOUDED.value) & 
-                (Calculation.submit_type == SubmitType.TELEGRAM.value))
+        .where((Calculation.status == CalculationStatus.CLOUDED.value) &
+               (Calculation.submit_type == SubmitType.TELEGRAM.value))
     )
-    users: List[TelegramUserModel] = [calc.user.tg_user[0] for calc in calculations]
+    users: List[TelegramUserModel] = [calc.user.tg_user[0]
+                                      for calc in calculations]
 
     updated = []
     for calc, user in zip(calculations, users):
@@ -49,7 +52,7 @@ async def notify_on_finished(bot: Bot):
                 text=CALCULATION_FINISHED_LOG.format(
                     user=create_user_link(
                         user=message.chat,
-                        model=calc.user
+                        model=user
                     ),
                     name=calc.name,
                     link=link
@@ -57,6 +60,15 @@ async def notify_on_finished(bot: Bot):
             )
             calc.set_status(CalculationStatus.SENDED)
             updated.append(calc)
+
+        except asyncio.CancelledError:
+            if len(updated) > 0:
+                with db.atomic():
+                    Calculation.bulk_update(
+                        updated,
+                        fields=['status']
+                    )
+            raise
 
         except Exception as e:
             logging.error(
