@@ -21,6 +21,7 @@ class User(BaseDBModel):
         constraints=[Check('calculation_limit >= 0')]
     )
     blocked = BooleanField(default=False)
+    access_level = IntegerField(default=1000)
 
     person = ForeignKeyField(
         model=Person,
