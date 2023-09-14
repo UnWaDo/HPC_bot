@@ -78,7 +78,7 @@ def start_calculation(
     if directory == '':
         directory = None
 
-    stdout, _ = cluster.start_runner(
+    stdout, stderr = cluster.start_runner(
         runner=runner,
         args=args,
         filename=basename,
@@ -91,7 +91,7 @@ def start_calculation(
             'No slurm id returned '
             f'while setting up calculation #{calculation.id} '
             f'({path}). '
-            f'Output is {stdout}')
+            f'Output is {stdout}\nStderr is {stderr}')
         return
 
     slurm_id = int(matched.group(1))
@@ -132,9 +132,12 @@ def check_updates():
         if cluster_calc.get(cluster.label) is None:
             continue
 
-        stdout, _ = cluster.start_runner(SLURM_RUNNER)
+        stdout, stderr = cluster.start_runner(SLURM_RUNNER)
+        logging.debug(f'Slurm output is {stdout}\n, stderr is {stderr}')
 
-        slurm_data = [line.split() for line in stdout.split('\n')[1:]]
+        slurm_data = [line.split() for line in filter(
+            lambda x: x.strip(), stdout.split('\n')[1:]
+        )]
 
         slurm_status = [
             CalculationStatus.from_slurm(status) for _, status in slurm_data

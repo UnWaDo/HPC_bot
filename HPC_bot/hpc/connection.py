@@ -112,7 +112,7 @@ class Connection(BaseModel):
 
         stdin, stdout, stderr = ssh.exec_command(command)
         logging.debug(f'Executed command {command} at '
-                     '{self.user}@{self.host}:{self.port}')
+                     f'{self.user}@{self.host}:{self.port}')
         stdin.close()
 
         return ''.join(stdout.readlines()), ''.join(stderr.readlines())

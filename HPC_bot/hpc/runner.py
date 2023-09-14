@@ -46,6 +46,9 @@ class Runner(BaseModel):
         else:
             args = self.default_args.copy()
 
+        if filename is None:
+            filename = ''
+
         for i, arg in enumerate(args):
             if arg == '{}':
                 args[i] = filename
