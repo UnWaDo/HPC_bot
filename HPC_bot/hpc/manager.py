@@ -90,8 +90,8 @@ def start_calculation(
         logging.warning(
             'No slurm id returned '
             f'while setting up calculation #{calculation.id} '
-            f'({path}).'
-            'Output is {stdout}')
+            f'({path}). '
+            f'Output is {stdout}')
         return
 
     slurm_id = int(matched.group(1))
