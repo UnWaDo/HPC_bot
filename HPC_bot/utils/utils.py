@@ -1,9 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def get_month_start() -> datetime:
-    return datetime.utcnow().replace(
-        day=1,
+    return (datetime.utcnow() - timedelta(days=30)).replace(
         hour=0,
         minute=0,
         second=0,

@@ -1,9 +1,16 @@
+from enum import Enum
 from pydantic import BaseModel, SecretStr
 
 from .connection import Connection
 
 
-DB_DEFAULT_NAME = 'hpc_bot.db'
+DB_DEFAULT_NAME = ':memory:'
+
+
+class DatabaseTypes(Enum):
+    SQLITE = 'sqlite'
+    POSTGRESQL = 'postgresql'
+    MYSQL = 'mysql'
 
 
 class Database(BaseModel):
@@ -11,7 +18,8 @@ class Database(BaseModel):
 
     connection: Connection = Connection(
         host='localhost',
-        port='5432',
-        user='postgres',
-        password='postgres'
+        port='80',
+        user=''
     )
+
+    db_type: DatabaseTypes = DatabaseTypes.SQLITE
