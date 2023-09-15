@@ -30,6 +30,18 @@ class CalculationStatus(Enum):
 
         return CalculationStatus.FINISHED
 
+    def __lt__(self, other):
+        return self.value < other.value
+
+    def __gt__(self, other):
+        return self.value > other.value
+
+    def __ge__(self, other):
+        return self.value >= other.value
+
+    def __le__(self, other):
+        return self.value <= other.value
+
 
 class SubmitType(Enum):
     TELEGRAM = 0
