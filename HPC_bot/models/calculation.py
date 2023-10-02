@@ -113,6 +113,18 @@ class Calculation(BaseDBModel):
         return Calculation.select()
 
     @staticmethod
+    def get_not_started() -> List['Calculation']:
+        return (
+            Calculation.select(Calculation, Cluster, User)
+            .join(Cluster)
+            .switch(Calculation)
+            .join(User)
+            .where(
+                Calculation.status == CalculationStatus.NOT_STARTED.value
+            )
+        )
+
+    @staticmethod
     def get_unfinished() -> List['Calculation']:
         return (
             Calculation.select(Calculation, Cluster, User)

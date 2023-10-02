@@ -114,7 +114,7 @@ def update_db():
         )
 
 
-def check_updates():
+async def check_updates():
     calculations = Calculation.get_unfinished()
 
     cluster_labels = set(c.cluster.label for c in calculations)
@@ -169,7 +169,7 @@ def check_updates():
             )
 
 
-def load_finished():
+async def load_finished():
     calculations = Calculation.get_by_status(CalculationStatus.FINISHED)
 
     cluster_labels = set(c.cluster.label for c in calculations)
@@ -207,7 +207,7 @@ def load_finished():
             )
 
 
-def send_to_cloud():
+async def send_to_cloud():
     calculations = Calculation.get_by_status(CalculationStatus.LOADED)
 
     cluster_labels = set(c.cluster.label for c in calculations)

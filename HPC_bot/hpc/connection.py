@@ -1,4 +1,5 @@
 import os
+import re
 from stat import S_ISDIR
 from typing import Dict, Optional, Tuple
 from xml.etree import ElementTree
@@ -10,6 +11,9 @@ from pysftp import Connection as SFTPClient
 import logging
 import requests
 from requests.auth import HTTPBasicAuth
+
+
+FILTERED_EXT = [re.compile(s) for s in [r'\.tmp', r'\.tmp\..*']]
 
 
 class Connection(BaseModel):
