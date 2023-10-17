@@ -12,6 +12,8 @@ import logging
 import requests
 from requests.auth import HTTPBasicAuth
 
+from HPC_bot.utils import config
+
 
 FILTERED_EXT = [re.compile(s) for s in [r'\.tmp', r'\.tmp\..*']]
 
@@ -143,6 +145,9 @@ class Connection(BaseModel):
             path = f'{remote_path}/{file}'
             if self.is_dir_sftp(path):
                 self.get_by_sftp(path, local_path, recurse)
+                continue
+            _, ext = os.path.splitext(file)
+            if ext not in config.extensions_whitelist:
                 continue
             sftp.get(
                 remotepath=path,
