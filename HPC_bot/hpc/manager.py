@@ -202,8 +202,8 @@ async def check_updates():
 
     cluster_calc = locate_clusters(calculations)
 
+    updated_time = []
     updated_status = []
-    updated_slurm = []
     for cluster in config.clusters:
 
         if cluster_calc.get(cluster.label) is None:
@@ -230,25 +230,25 @@ async def check_updates():
             except ValueError:
                 calc.end_datetime = datetime.utcnow()
                 calc.set_status(CalculationStatus.FINISHED_OK)
-                updated_status.append(calc)
+                updated_time.append(calc)
                 continue
 
             if calc.get_status() >= slurm_status[index]:
                 continue
             calc.set_status(slurm_status[index])
-            updated_slurm.append(calc)
+            updated_status.append(calc)
 
+    if updated_time:
+        with db.atomic():
+            Calculation.bulk_update(
+                updated_time,
+                fields=['status', 'end_datetime']
+            )
     if updated_status:
         with db.atomic():
             Calculation.bulk_update(
-                updated_status,
+                updated_time,
                 fields=['status']
-            )
-    if updated_slurm:
-        with db.atomic():
-            Calculation.bulk_update(
-                updated_status,
-                fields=['end_datetime', 'status']
             )
 
 

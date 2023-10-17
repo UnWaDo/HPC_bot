@@ -12,7 +12,8 @@ import logging
 import requests
 from requests.auth import HTTPBasicAuth
 
-from HPC_bot.utils import config
+# TODO: move this to config
+EXTENSIONS_WHITELIST = [".out", ".log", ".gjf", ".inp", ".err", ".fchk", ".xyz", ".cpcm", ".engrad", ".opt", ".hess", ".gbw"]
 
 
 FILTERED_EXT = [re.compile(s) for s in [r'\.tmp', r'\.tmp\..*']]
@@ -147,7 +148,7 @@ class Connection(BaseModel):
                 self.get_by_sftp(path, local_path, recurse)
                 continue
             _, ext = os.path.splitext(file)
-            if ext not in config.extensions_whitelist:
+            if ext not in EXTENSIONS_WHITELIST:
                 continue
             sftp.get(
                 remotepath=path,
