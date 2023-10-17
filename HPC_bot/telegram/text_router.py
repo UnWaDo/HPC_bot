@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import os
 import re
 from aiogram import Router, Bot
-from aiogram.types import Message, User as AioUser
+from aiogram.types import Message, User as AioUser, Document
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram import F
 
@@ -23,6 +23,8 @@ message_router.message.filter(F.chat.type == 'private')
 FIRST_NAME_RE = re.compile(r'имя:? (.+?)(,|$|\n)', re.IGNORECASE)
 LAST_NAME_RE = re.compile(r'фамилия:? (.+?)(,|$|\n)', re.IGNORECASE)
 ORGANIZATION_RE = re.compile(r'организация:? (.+?)(,|$|\n)', re.IGNORECASE)
+
+FILENAME_RE = re.compile(r'[\w\s.]+\.[\w\s]+')
 
 
 START_MESSAGE = (
@@ -81,12 +83,14 @@ RUN_NO_RUNNER_LOG_MESSAGE = (
     'Пользователь {user} пытался поставить расчёт, '
     'но соответствующая файлу {filename} команда не найдена'
 )
-RUN_EXCESSIVE_SIZE_MESSAGE = (
+RUN_INVALID_FILE = (
     'Файл превышает максимально разрешённый размер'
+    ' или содержит запрещённые символы (в названии файла'
+    ' могут быть только буквы, цифры и точки)'
 )
-RUN_EXCESSIVE_SIZE_LOG_MESSAGE = (
+RUN_INVALID_FILE_LOG = (
     'Пользователь {user} пытался поставить расчёт, '
-    'с размером файла больше лимита ({limit} Б)'
+    'с некорректным названием или больше лимита ({limit} Б)'
 )
 RUN_LIMIT_EXCEEDED = (
     'Ваш лимит расчётов ({limit} в месяц) исчерпан. '
@@ -209,6 +213,16 @@ async def not_authorized(
     )
 
 
+def is_file_valid(document: Document) -> bool:
+    if document.file_size > config.max_file_size:
+        return False
+    if document.file_name is None:
+        return False
+    if FILENAME_RE.fullmatch(document.file_name) is None:
+        return False
+    return True
+
+
 @message_router.message(CommandStart())
 async def start_message(message: Message):
     await message.answer(START_MESSAGE.format(
@@ -235,10 +249,10 @@ async def parse_file(message: Message):
     if tg_user is None:
         return
 
-    if message.document.file_size > config.max_file_size:
-        await message.reply(RUN_EXCESSIVE_SIZE_MESSAGE)
+    if not is_file_valid(message.document):
+        await message.reply(RUN_INVALID_FILE)
 
-        await log_message(message.bot, RUN_EXCESSIVE_SIZE_LOG_MESSAGE.format(
+        await log_message(message.bot, RUN_INVALID_FILE_LOG.format(
             user=create_user_link(message.from_user),
             limit=config.max_file_size
         ))
