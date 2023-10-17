@@ -24,7 +24,7 @@ def finished_calculation():
         start_datetime=datetime.utcnow(),
         end_datetime=datetime.now(),
         slurm_id=1,
-        status=CalculationStatus.FINISHED
+        status=CalculationStatus.FINISHED_OK
     )
 
 

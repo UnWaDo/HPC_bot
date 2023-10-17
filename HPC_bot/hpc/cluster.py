@@ -60,13 +60,23 @@ class Cluster(BaseModel):
             runner.create_command(args, filename)
         )
 
-    def perform_command(self, command: str) -> Optional[Tuple[str, str]]:
+    def perform_command(
+        self,
+        command: str,
+        filename: str = None,
+        chdir: str = None
+    ) -> Optional[Tuple[str, str]]:
         runner, args = self.find_suitable_runner(command)
 
         if runner is None:
             return None
 
-        return self.start_runner(runner, args)
+        return self.start_runner(
+            runner,
+            args,
+            filename,
+            chdir,
+        )
 
     def upload_file(
         self,

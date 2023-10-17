@@ -81,6 +81,13 @@ RUN_NO_RUNNER_LOG_MESSAGE = (
     'Пользователь {user} пытался поставить расчёт, '
     'но соответствующая файлу {filename} команда не найдена'
 )
+RUN_EXCESSIVE_SIZE_MESSAGE = (
+    'Файл превышает максимально разрешённый размер'
+)
+RUN_EXCESSIVE_SIZE_LOG_MESSAGE = (
+    'Пользователь {user} пытался поставить расчёт, '
+    'с размером файла больше лимита ({limit} Б)'
+)
 RUN_LIMIT_EXCEEDED = (
     'Ваш лимит расчётов ({limit} в месяц) исчерпан. '
     'Расчёт проигнорирован'
@@ -228,7 +235,17 @@ async def parse_file(message: Message):
     if tg_user is None:
         return
 
+    if message.document.file_size > config.max_file_size:
+        await message.reply(RUN_EXCESSIVE_SIZE_MESSAGE)
+
+        await log_message(message.bot, RUN_EXCESSIVE_SIZE_LOG_MESSAGE.format(
+            user=create_user_link(message.from_user),
+            limit=config.max_file_size
+        ))
+        return
+
     file_id = message.document.file_id
+
     basename, ext = os.path.splitext(
         os.path.basename(message.document.file_name))
 
@@ -246,6 +263,7 @@ async def parse_file(message: Message):
     try:
         calculation = Calculation.new_calculation(
             name=basename + ext,
+            command=runner.create_command(args, filename='{}'),
             user=tg_user.user,
             submit_type=SubmitType.TELEGRAM,
             cluster=cluster
@@ -271,14 +289,6 @@ async def parse_file(message: Message):
     calculation_path = create_calculation_path(calculation)
 
     await message.bot.download_file(file.file_path, calculation_path)
-
-    start_calculation(
-        path=calculation_path,
-        calculation=calculation,
-        cluster=cluster,
-        runner=runner,
-        args=args
-    )
 
     await message.reply(RUN_MESSAGE.format(program=runner.program))
 

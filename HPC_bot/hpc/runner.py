@@ -51,7 +51,7 @@ class Runner(BaseModel):
 
         for i, arg in enumerate(args):
             if arg == '{}':
-                args[i] = filename
+                args[i] = f"'{filename}'"
         return ' '.join([self.program] + args).strip()
 
     def split_command(self, command: str) -> List[str]:
