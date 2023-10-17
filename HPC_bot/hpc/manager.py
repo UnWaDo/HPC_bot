@@ -247,7 +247,7 @@ async def check_updates():
     if updated_status:
         with db.atomic():
             Calculation.bulk_update(
-                updated_time,
+                updated_status,
                 fields=['status']
             )
 
