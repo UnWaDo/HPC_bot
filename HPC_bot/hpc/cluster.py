@@ -37,11 +37,9 @@ class Cluster(BaseModel):
     def find_suitable_runner(self, command: str) -> Tuple[Runner, List[str]]:
         args = None
         for runner in self.runners:
-            try:
-                args = runner.split_command(command)
-            except ValueError:
-                continue
-            break
+            args = runner.split_command(command, throws=False)
+            if args is not None:
+                break
 
         if args is None:
             return None, []

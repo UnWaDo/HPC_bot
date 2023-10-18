@@ -13,14 +13,17 @@ class Runner(BaseModel):
     description: str = ''
 
     @staticmethod
-    def _validate_args(args: List[str], allowed_args: List[str] = []):
+    def _validate_args(args: List[str], allowed_args: List[str] = [], throws=True) -> bool:
         for arg in args:
             if not any(re.fullmatch(r, arg) for r in allowed_args):
+                if not throws:
+                    return False
                 raise ValueError(
                     f'Argument {arg} is not in the list of allowed arguments')
+        return True
 
-    def validate_args(self, args: List[str]):
-        Runner._validate_args(args, self.allowed_args)
+    def validate_args(self, args: List[str], throws=True):
+        return Runner._validate_args(args, self.allowed_args, throws)
 
     @field_validator('default_args')
     @classmethod
@@ -54,17 +57,22 @@ class Runner(BaseModel):
                 args[i] = f"'{filename}'"
         return ' '.join([self.program] + args).strip()
 
-    def split_command(self, command: str) -> List[str]:
+    def split_command(self, command: str, throws=True) -> List[str]:
         args = shlex.split(command)
 
-        if len(args) < 1:
+        if not args:
+            if not throws:
+                return None
             raise ValueError(f'Empty command given')
         if args[0] != self.program:
+            if not throws:
+                return None
             raise ValueError(
                 f'Program name must be {self.program}, got {args[0]} instead')
 
         args = args[1:]
-        self.validate_args(args)
+        if not self.validate_args(args, throws):
+            return None
 
         return args
 
