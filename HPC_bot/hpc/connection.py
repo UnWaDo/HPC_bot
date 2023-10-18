@@ -14,6 +14,7 @@ from requests.auth import HTTPBasicAuth
 
 # TODO: move this to config
 EXTENSIONS_WHITELIST = [".out", ".log", ".gjf", ".inp", ".err", ".fchk", ".xyz", ".cpcm", ".engrad", ".opt", ".hess", ".gbw"]
+FILES_WHITELIST = ['hessian', 'vibspectrum']
 
 
 FILTERED_EXT = [re.compile(s) for s in [r'\.tmp', r'\.tmp\..*']]
@@ -147,8 +148,11 @@ class Connection(BaseModel):
             if self.is_dir_sftp(path):
                 self.get_by_sftp(path, local_path, recurse)
                 continue
-            _, ext = os.path.splitext(file)
-            if ext not in EXTENSIONS_WHITELIST:
+            basename, ext = os.path.splitext(os.path.basename(file))
+            if (
+                basename not in FILES_WHITELIST and
+                ext not in EXTENSIONS_WHITELIST
+            ):
                 continue
             sftp.get(
                 remotepath=path,
