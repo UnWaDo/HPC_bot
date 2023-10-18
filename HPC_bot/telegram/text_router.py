@@ -11,7 +11,7 @@ from ..utils import config, get_month_start
 from ..models import TelegramUser, UnauthorizedAccessError, Person
 from ..models import User as UserModel
 from ..models.manager import (get_all_with_calcs, get_tg_user_with_calcs,
-                              get_tg_user)
+                              get_tg_user, search_users)
 from ..hpc.manager import create_calculation_path, start_calculation
 from ..hpc.manager import select_cluster
 from ..models import SubmitType, Calculation
@@ -175,6 +175,16 @@ STATUS_HELP = (
     'данных других пользователей (например, /status 1)'
 )
 STATUS_NOT_FOUND = 'Пользователь не найден'
+SEARCH_USAGE = (
+    'Команда /search служит для поиска пользователей по запросам'
+    ' Доступна только администраторам.'
+    ' Использование: /search last_name, first_name, organization'
+    ' Выводит список пользователей, отвечающих запросу,'
+    ' чтобы не искать по одному из параметров, оставьте его пустым'
+)
+SEARCH_USERS = (
+    'Количество найденных пользователей: {count}\n{users}'
+)
 ALTER_LIMIT_USAGE = (
     'Команда /alter_limit служит для изменения лимита отдельного пользователя.'
     ' Доступна только администраторам.'
@@ -512,6 +522,38 @@ async def user_status(message: Message, command: CommandObject):
         organization=org_name,
         limit=user.user.calculation_limit,
         used=user.num_calc
+    ))
+
+
+@message_router.message(Command(commands=['search']))
+async def search_user(message: Message, command: CommandObject):
+    if message.from_user.username != config.bot.admin_name[1:]:
+        await message.answer(NOT_ALLOWED_COMMAND)
+        return
+    if command.args is None:
+        await message.answer(SEARCH_USAGE)
+        return
+
+    args = [a.strip() for a in command.args.split(',')]
+    users = search_users(
+        last_name=args[0] if args[0] != '' else None,
+        first_name=args[1] if len(args) > 1 and args[1] != '' else None,
+        organization=args[2] if len(args) > 2 and args[2] != '' else None,
+    )
+    users_str = []
+    for i, user in enumerate(users):
+        org = user.user.person.organization
+        if org is None:
+            org_name = '(неизвестно)'
+        else:
+            org_name = org.abbreviation
+
+        users_str.append(
+            f'{i + 1}. {create_user_link(model=user)} ({org_name})'
+        )
+    await message.answer(SEARCH_USERS.format(
+        count = len(users_str),
+        users='\n'.join(users_str)
     ))
 
 

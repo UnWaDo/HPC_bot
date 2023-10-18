@@ -32,6 +32,34 @@ def get_all_with_calcs(since: datetime = None) -> Iterable[TelegramUser]:
     )
 
 
+def search_users(
+    last_name: str = None,
+    first_name: str = None,
+    organization: str = None
+) -> Iterable[TelegramUser]:
+    select = (
+        TelegramUser.select(
+            TelegramUser,
+            User,
+            Person,
+            Organization,
+        )
+        .join(User)
+        .join(Person)
+        .join(Organization, JOIN.LEFT_OUTER)
+    )
+    if last_name is not None:
+        select = select.where(Person.last_name.ilike(last_name))
+    if first_name is not None:
+        select = select.where(Person.first_name.ilike(first_name))
+    if organization is not None:
+        select = select.where(
+            Organization.name.ilike(organization) | 
+            Organization.abbreviation.ilike(organization)
+        )
+    return select
+
+
 def get_tg_user(tg_id: int = None, user_id: int = None) -> TelegramUser:
     if tg_id is None and user_id is None:
         return None
