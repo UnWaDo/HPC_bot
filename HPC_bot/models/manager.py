@@ -28,8 +28,31 @@ def get_all_with_calcs(since: datetime = None) -> Iterable[TelegramUser]:
             JOIN.LEFT_OUTER,
             on=(calculations.c.user_id == User.id)
         )
-        .group_by(TelegramUser)
+        .group_by(TelegramUser, User, Person)
     )
+
+
+def get_tg_user(tg_id: int = None, user_id: int = None) -> TelegramUser:
+    if tg_id is None and user_id is None:
+        return None
+
+    select = (
+        TelegramUser.select(
+            TelegramUser,
+            User,
+            Person,
+            Organization,
+        )
+        .join(User)
+        .join(Person)
+        .join(Organization, JOIN.LEFT_OUTER)
+    )
+    if tg_id is not None:
+        select = select.where(TelegramUser.tg_id == tg_id)
+    if user_id is not None:
+        select = select.where(User.id == user_id)
+
+    return select.get_or_none()
 
 
 def get_tg_user_with_calcs(
@@ -64,7 +87,7 @@ def get_tg_user_with_calcs(
             JOIN.LEFT_OUTER,
             on=(calculations.c.user_id == User.id)
         )
-        .group_by(TelegramUser)
+        .group_by(TelegramUser, User, Person, Organization)
     )
     if tg_id is not None:
         select = select.where(TelegramUser.tg_id == tg_id)

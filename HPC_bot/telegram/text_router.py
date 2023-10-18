@@ -10,7 +10,8 @@ from .utils import log_message, create_user_link, get_str_from_re
 from ..utils import config, get_month_start
 from ..models import TelegramUser, UnauthorizedAccessError, Person
 from ..models import User as UserModel
-from ..models.manager import get_all_with_calcs, get_tg_user_with_calcs
+from ..models.manager import (get_all_with_calcs, get_tg_user_with_calcs,
+                              get_tg_user)
 from ..hpc.manager import create_calculation_path, start_calculation
 from ..hpc.manager import select_cluster
 from ..models import SubmitType, Calculation
@@ -174,6 +175,19 @@ STATUS_HELP = (
     'данных других пользователей (например, /status 1)'
 )
 STATUS_NOT_FOUND = 'Пользователь не найден'
+ALTER_LIMIT_USAGE = (
+    'Команда /alter_limit служит для изменения лимита отдельного пользователя.'
+    ' Доступна только администраторам.'
+    ' Использование: /alter_limit user_id new_limit'
+)
+ALTER_LIMIT_NOTIFY = (
+    'Количество доступных расчётов изменено до {limit}'
+)
+ALTER_LIMIT_LOG = (
+    'Лимит расчётов пользователя {user} изменён до {limit}'
+    ' пользователем {admin}'
+)
+COMMAND_ERROR = 'Ошибка при выполнении команды'
 
 
 async def is_authorized(
@@ -499,6 +513,59 @@ async def user_status(message: Message, command: CommandObject):
         limit=user.user.calculation_limit,
         used=user.num_calc
     ))
+
+
+@message_router.message(Command(commands=['alter_limit']))
+async def alter_limit(message: Message, command: CommandObject):
+
+    if message.from_user.username != config.bot.admin_name[1:]:
+        await message.answer(NOT_ALLOWED_COMMAND)
+        return
+    if command.args is None:
+        await message.answer(ALTER_LIMIT_USAGE)
+        return
+    
+    args = command.args.split()
+    if len(args) < 2:
+        await message.answer(ALTER_LIMIT_USAGE)
+        return
+    
+    try:
+        idx = int(args[0])
+        limit = int(args[1])
+    except (ValueError, TypeError):
+        await message.answer(ALTER_LIMIT_USAGE)
+        return
+
+    user = get_tg_user(user_id=idx)
+    if user is None:
+        await message.answer(STATUS_NOT_FOUND)
+        return
+
+    org = user.user.person.organization
+    if org is None:
+        org_name = '(неизвестно)'
+    else:
+        org_name = org.name
+
+    try:
+        user.user.calculation_limit = limit
+        user.user.save()
+    except Exception:
+        await message.answer(COMMAND_ERROR)
+        return
+
+    await message.answer(ALTER_LIMIT_NOTIFY.format(
+        limit=limit
+    ))
+    await log_message(
+        message.bot,
+        ALTER_LIMIT_LOG.format(
+            user=create_user_link(model=user),
+            limit=limit,
+            admin=create_user_link(message.from_user)
+        )
+    )
 
 
 @message_router.message()
