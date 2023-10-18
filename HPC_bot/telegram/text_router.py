@@ -25,7 +25,7 @@ FIRST_NAME_RE = re.compile(r'имя:? (.+?)(,|$|\n)', re.IGNORECASE)
 LAST_NAME_RE = re.compile(r'фамилия:? (.+?)(,|$|\n)', re.IGNORECASE)
 ORGANIZATION_RE = re.compile(r'организация:? (.+?)(,|$|\n)', re.IGNORECASE)
 
-FILENAME_RE = re.compile(r'[\w\s.]+\.[\w\s]+')
+FILENAME_RE = re.compile(r'[\w.\-_]+\.[\w]+')
 
 
 START_MESSAGE = (
@@ -74,20 +74,34 @@ RUN_MESSAGE = (
     'Будет поставлен расчёт при помощи {program}'
 )
 RUN_LOG_MESSAGE = (
-    'Пользователь {user} поставил расчёт с использованием {program}'
+    'Пользователь {user} поставил расчёт с использованием {program}.'
+    ' Расчёт будет запущен с командой <code>{command}</code>'
 )
 RUN_NO_RUNNER_MESSAGE = (
     'Не найдено программ, отвечающих данному расширению. '
     'Укажите команду вручную или измените расширение файла'
 )
+RUN_NO_PATH_MESSAGE = (
+    'Вы не указали файл в качестве аргумента программы.'
+    ' Расчёт не будет поставлен (если это было умышленно,'
+    ' обратитесь к администратору)'
+)
 RUN_NO_RUNNER_LOG_MESSAGE = (
     'Пользователь {user} пытался поставить расчёт, '
     'но соответствующая файлу {filename} команда не найдена'
 )
+RUN_NO_RUNNER_WITH_COMMAND = (
+    'Указана некорректная программа или аргументы'
+)
+RUN_NO_RUNNER_WITH_COMMAND_LOG = (
+    'Пользователь {user} попытался поставить расчёт'
+    ' с некорректной командой <code>{command}</code>'
+    ' и файлом {filename}'
+)
 RUN_INVALID_FILE = (
     'Файл превышает максимально разрешённый размер'
     ' или содержит запрещённые символы (в названии файла'
-    ' могут быть только буквы, цифры и точки)'
+    ' могут быть только буквы, цифры и символы ., -, _)'
 )
 RUN_INVALID_FILE_LOG = (
     'Пользователь {user} пытался поставить расчёт, '
@@ -287,15 +301,32 @@ async def parse_file(message: Message):
     basename, ext = os.path.splitext(
         os.path.basename(message.document.file_name))
 
-    cluster, runner, args = select_cluster(ext)
+    cluster, runner, args = select_cluster(ext, command=message.caption)
 
     if runner is None:
-        await message.reply(RUN_NO_RUNNER_MESSAGE)
+        if message.caption is None:
+            await message.reply(RUN_NO_RUNNER_MESSAGE)
+        else:
+            await message.reply(RUN_NO_RUNNER_WITH_COMMAND)
 
-        await log_message(message.bot, RUN_NO_RUNNER_LOG_MESSAGE.format(
-            user=create_user_link(message.from_user),
-            filename=message.document.file_name
-        ))
+        if message.caption is None:
+            await log_message(message.bot, RUN_NO_RUNNER_LOG_MESSAGE.format(
+                user=create_user_link(message.from_user),
+                filename=message.document.file_name
+            ))
+        else:
+            await log_message(
+                message.bot,
+                RUN_NO_RUNNER_WITH_COMMAND_LOG.format(
+                    user=create_user_link(message.from_user),
+                    filename=message.document.file_name,
+                    command=message.caption
+                )
+            )
+        return
+    
+    if args is not None and '{}' not in args:
+        await message.answer(RUN_NO_PATH_MESSAGE)
         return
 
     try:
@@ -334,7 +365,8 @@ async def parse_file(message: Message):
         bot=message.bot,
         text=RUN_LOG_MESSAGE.format(
             user=create_user_link(message.from_user, tg_user),
-            program=runner.program
+            program=runner.program,
+            command=calculation.command,
         ),
         file=message.document.file_id
     )

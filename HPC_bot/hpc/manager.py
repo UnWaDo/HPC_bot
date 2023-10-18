@@ -42,10 +42,16 @@ def select_cluster(
 
     clusters = []  # type: List[Tuple[Cluster, Runner]]
 
-    for cluster in config.clusters:
-        runner = cluster.get_runner_by_extension(extension)
-        if runner is not None:
-            clusters.append((cluster, runner))
+    if command is None:
+        for cluster in config.clusters:
+            runner = cluster.get_runner_by_extension(extension)
+            if runner is not None:
+                clusters.append((cluster, runner))
+    else:
+        for cluster in config.clusters:
+            runner, _ = cluster.find_suitable_runner(command)
+            if runner is not None:
+                clusters.append((cluster, runner))
 
     if len(clusters) == 0:
         return None, None, None
