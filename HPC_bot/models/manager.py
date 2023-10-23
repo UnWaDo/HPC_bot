@@ -6,30 +6,26 @@ from . import User, TelegramUser, Person, Calculation, Organization
 from .user import User
 
 
-def get_all_with_calcs(since: datetime = None) -> Iterable[TelegramUser]:
+def get_all_with_calcs(since: datetime = None,
+                       remove_blocked: bool = False) -> Iterable[TelegramUser]:
     if since is not None:
         calculations = Calculation.select(Calculation).where(
-            (Calculation.start_datetime >= since)
-        )
+            (Calculation.start_datetime >= since))
     else:
         calculations = Calculation.select(Calculation)
 
-    return (
-        TelegramUser.select(
-            TelegramUser,
-            User,
-            Person,
-            fn.COUNT(calculations.c.id).alias('num_calc')
-        )
+    select = (
+        TelegramUser.select(TelegramUser, User, Person,
+                            fn.COUNT(calculations.c.id).alias('num_calc'))
         .join(User)
         .join(Person)
-        .join(
-            calculations,
-            JOIN.LEFT_OUTER,
-            on=(calculations.c.user_id == User.id)
-        )
-        .group_by(TelegramUser, User, Person)
-    )
+        .join(calculations, JOIN.LEFT_OUTER,
+              on=(calculations.c.user_id == User.id))
+        .group_by(TelegramUser, User, Person))
+
+    if remove_blocked:
+        select = select.where(~User.blocked)
+    return select
 
 
 def search_users(
@@ -54,7 +50,7 @@ def search_users(
         select = select.where(Person.first_name.ilike(first_name))
     if organization is not None:
         select = select.where(
-            Organization.name.ilike(organization) | 
+            Organization.name.ilike(organization) |
             Organization.abbreviation.ilike(organization)
         )
     return select

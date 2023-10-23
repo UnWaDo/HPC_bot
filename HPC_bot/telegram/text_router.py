@@ -180,7 +180,7 @@ LIST_USERS = (
     '{users}'
 )
 USER_STATUS = (
-    'Пользователь {first_name} {last_name} из организации {organization}\n'
+    'Пользователь {user} из организации {organization}\n'
     'Месячный лимит расчётов: {limit}, израсходовано {used}'
 )
 STATUS_HELP = (
@@ -324,7 +324,7 @@ async def parse_file(message: Message):
                 )
             )
         return
-    
+
     if args is not None and '{}' not in args:
         await message.answer(RUN_NO_PATH_MESSAGE)
         return
@@ -497,12 +497,19 @@ async def unblock_user(message: Message, command: CommandObject):
 
 
 @message_router.message(Command(commands=['list']))
-async def list_users(message: Message):
+async def list_users(message: Message, command: CommandObject):
     if message.from_user.username != config.bot.admin_name[1:]:
         await message.answer(NOT_ALLOWED_COMMAND)
         return
 
-    users = get_all_with_calcs(since=get_month_start())
+    remove_blocked = True
+    if command.args is not None and command.args.strip() == 'all':
+        remove_blocked = False
+
+    users = get_all_with_calcs(
+        since=get_month_start(),
+        remove_blocked=remove_blocked,
+    )
 
     await message.answer(LIST_USERS.format(
         users='\n'.join([
@@ -548,13 +555,11 @@ async def user_status(message: Message, command: CommandObject):
     else:
         org_name = org.name
 
-    await message.answer(USER_STATUS.format(
-        first_name=user.user.person.first_name,
-        last_name=user.user.person.last_name,
-        organization=org_name,
-        limit=user.user.calculation_limit,
-        used=user.num_calc
-    ))
+    await message.answer(
+        USER_STATUS.format(user=create_user_link(model=user),
+                           organization=org_name,
+                           limit=user.user.calculation_limit,
+                           used=user.num_calc))
 
 
 @message_router.message(Command(commands=['search']))
@@ -598,12 +603,12 @@ async def alter_limit(message: Message, command: CommandObject):
     if command.args is None:
         await message.answer(ALTER_LIMIT_USAGE)
         return
-    
+
     args = command.args.split()
     if len(args) < 2:
         await message.answer(ALTER_LIMIT_USAGE)
         return
-    
+
     try:
         idx = int(args[0])
         limit = int(args[1])
