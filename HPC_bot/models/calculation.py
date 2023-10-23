@@ -95,7 +95,7 @@ class Calculation(BaseDBModel):
             )
         if len(user.get_calculations(
             get_month_start())
-        ) > user.calculation_limit:
+        ) >= user.calculation_limit:
 
             raise CalculationLimitExceeded(
                 f'User #{user.id} exceeded its calculation limit'
