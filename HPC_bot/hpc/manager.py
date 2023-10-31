@@ -114,7 +114,11 @@ async def upload_to_clusters():
             path = await upload_to_cluster(calculation, cluster)
 
             if path is None:
-                calculation.set_status(CalculationStatus.FAILED_TO_UPLOAD)
+                logging.warning(
+                    f'Failed to upload calculation {calculation.name}'
+                    f' to cluster {cluster.label}'
+                )
+                continue
             else:
                 calculation.set_status(CalculationStatus.UPLOADED)
             updated.append(calculation)
