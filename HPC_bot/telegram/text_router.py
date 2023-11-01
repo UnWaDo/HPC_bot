@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import os
 import re
 from aiogram import Router, Bot
-from aiogram.types import Message, User as AioUser
+from aiogram.types import Message, User as AioUser, Document
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram import F
 
@@ -10,7 +10,8 @@ from .utils import log_message, create_user_link, get_str_from_re
 from ..utils import config, get_month_start
 from ..models import TelegramUser, UnauthorizedAccessError, Person
 from ..models import User as UserModel
-from ..models.manager import get_all_with_calcs, get_tg_user_with_calcs
+from ..models.manager import (get_all_with_calcs, get_tg_user_with_calcs,
+                              get_tg_user, search_users)
 from ..hpc.manager import create_calculation_path, start_calculation
 from ..hpc.manager import select_cluster
 from ..models import SubmitType, Calculation
@@ -23,6 +24,8 @@ message_router.message.filter(F.chat.type == 'private')
 FIRST_NAME_RE = re.compile(r'имя:? (.+?)(,|$|\n)', re.IGNORECASE)
 LAST_NAME_RE = re.compile(r'фамилия:? (.+?)(,|$|\n)', re.IGNORECASE)
 ORGANIZATION_RE = re.compile(r'организация:? (.+?)(,|$|\n)', re.IGNORECASE)
+
+FILENAME_RE = re.compile(r'[\w.\-_]+\.[\w]+')
 
 
 START_MESSAGE = (
@@ -71,15 +74,38 @@ RUN_MESSAGE = (
     'Будет поставлен расчёт при помощи {program}'
 )
 RUN_LOG_MESSAGE = (
-    'Пользователь {user} поставил расчёт с использованием {program}'
+    'Пользователь {user} поставил расчёт с использованием {program}.'
+    ' Расчёт будет запущен с командой <code>{command}</code>'
 )
 RUN_NO_RUNNER_MESSAGE = (
     'Не найдено программ, отвечающих данному расширению. '
     'Укажите команду вручную или измените расширение файла'
 )
+RUN_NO_PATH_MESSAGE = (
+    'Вы не указали файл в качестве аргумента программы.'
+    ' Расчёт не будет поставлен (если это было умышленно,'
+    ' обратитесь к администратору)'
+)
 RUN_NO_RUNNER_LOG_MESSAGE = (
     'Пользователь {user} пытался поставить расчёт, '
     'но соответствующая файлу {filename} команда не найдена'
+)
+RUN_NO_RUNNER_WITH_COMMAND = (
+    'Указана некорректная программа или аргументы'
+)
+RUN_NO_RUNNER_WITH_COMMAND_LOG = (
+    'Пользователь {user} попытался поставить расчёт'
+    ' с некорректной командой <code>{command}</code>'
+    ' и файлом {filename}'
+)
+RUN_INVALID_FILE = (
+    'Файл превышает максимально разрешённый размер'
+    ' или содержит запрещённые символы (в названии файла'
+    ' могут быть только буквы, цифры и символы ., -, _)'
+)
+RUN_INVALID_FILE_LOG = (
+    'Пользователь {user} пытался поставить расчёт, '
+    'с некорректным названием или больше лимита ({limit} Б)'
 )
 RUN_LIMIT_EXCEEDED = (
     'Ваш лимит расчётов ({limit} в месяц) исчерпан. '
@@ -154,7 +180,7 @@ LIST_USERS = (
     '{users}'
 )
 USER_STATUS = (
-    'Пользователь {first_name} {last_name} из организации {organization}\n'
+    'Пользователь {user} из организации {organization}\n'
     'Месячный лимит расчётов: {limit}, израсходовано {used}'
 )
 STATUS_HELP = (
@@ -163,6 +189,29 @@ STATUS_HELP = (
     'данных других пользователей (например, /status 1)'
 )
 STATUS_NOT_FOUND = 'Пользователь не найден'
+SEARCH_USAGE = (
+    'Команда /search служит для поиска пользователей по запросам'
+    ' Доступна только администраторам.'
+    ' Использование: /search last_name, first_name, organization'
+    ' Выводит список пользователей, отвечающих запросу,'
+    ' чтобы не искать по одному из параметров, оставьте его пустым'
+)
+SEARCH_USERS = (
+    'Количество найденных пользователей: {count}\n{users}'
+)
+ALTER_LIMIT_USAGE = (
+    'Команда /alter_limit служит для изменения лимита отдельного пользователя.'
+    ' Доступна только администраторам.'
+    ' Использование: /alter_limit user_id new_limit'
+)
+ALTER_LIMIT_NOTIFY = (
+    'Количество доступных расчётов изменено до {limit}'
+)
+ALTER_LIMIT_LOG = (
+    'Лимит расчётов пользователя {user} изменён до {limit}'
+    ' пользователем {admin}'
+)
+COMMAND_ERROR = 'Ошибка при выполнении команды'
 
 
 async def is_authorized(
@@ -202,6 +251,16 @@ async def not_authorized(
     )
 
 
+def is_file_valid(document: Document) -> bool:
+    if document.file_size > config.max_file_size:
+        return False
+    if document.file_name is None:
+        return False
+    if FILENAME_RE.fullmatch(document.file_name) is None:
+        return False
+    return True
+
+
 @message_router.message(CommandStart())
 async def start_message(message: Message):
     await message.answer(START_MESSAGE.format(
@@ -228,24 +287,52 @@ async def parse_file(message: Message):
     if tg_user is None:
         return
 
+    if not is_file_valid(message.document):
+        await message.reply(RUN_INVALID_FILE)
+
+        await log_message(message.bot, RUN_INVALID_FILE_LOG.format(
+            user=create_user_link(message.from_user),
+            limit=config.max_file_size
+        ))
+        return
+
     file_id = message.document.file_id
+
     basename, ext = os.path.splitext(
         os.path.basename(message.document.file_name))
 
-    cluster, runner, args = select_cluster(ext)
+    cluster, runner, args = select_cluster(ext, command=message.caption)
 
     if runner is None:
-        await message.reply(RUN_NO_RUNNER_MESSAGE)
+        if message.caption is None:
+            await message.reply(RUN_NO_RUNNER_MESSAGE)
+        else:
+            await message.reply(RUN_NO_RUNNER_WITH_COMMAND)
 
-        await log_message(message.bot, RUN_NO_RUNNER_LOG_MESSAGE.format(
-            user=create_user_link(message.from_user),
-            filename=message.document.file_name
-        ))
+        if message.caption is None:
+            await log_message(message.bot, RUN_NO_RUNNER_LOG_MESSAGE.format(
+                user=create_user_link(message.from_user),
+                filename=message.document.file_name
+            ))
+        else:
+            await log_message(
+                message.bot,
+                RUN_NO_RUNNER_WITH_COMMAND_LOG.format(
+                    user=create_user_link(message.from_user),
+                    filename=message.document.file_name,
+                    command=message.caption
+                )
+            )
+        return
+
+    if args is not None and '{}' not in args:
+        await message.answer(RUN_NO_PATH_MESSAGE)
         return
 
     try:
         calculation = Calculation.new_calculation(
             name=basename + ext,
+            command=runner.create_command(args, filename='{}'),
             user=tg_user.user,
             submit_type=SubmitType.TELEGRAM,
             cluster=cluster
@@ -272,21 +359,14 @@ async def parse_file(message: Message):
 
     await message.bot.download_file(file.file_path, calculation_path)
 
-    start_calculation(
-        path=calculation_path,
-        calculation=calculation,
-        cluster=cluster,
-        runner=runner,
-        args=args
-    )
-
     await message.reply(RUN_MESSAGE.format(program=runner.program))
 
     await log_message(
         bot=message.bot,
         text=RUN_LOG_MESSAGE.format(
             user=create_user_link(message.from_user, tg_user),
-            program=runner.program
+            program=runner.program,
+            command=calculation.command,
         ),
         file=message.document.file_id
     )
@@ -417,12 +497,19 @@ async def unblock_user(message: Message, command: CommandObject):
 
 
 @message_router.message(Command(commands=['list']))
-async def list_users(message: Message):
+async def list_users(message: Message, command: CommandObject):
     if message.from_user.username != config.bot.admin_name[1:]:
         await message.answer(NOT_ALLOWED_COMMAND)
         return
 
-    users = get_all_with_calcs(since=get_month_start())
+    remove_blocked = True
+    if command.args is not None and command.args.strip() == 'all':
+        remove_blocked = False
+
+    users = get_all_with_calcs(
+        since=get_month_start(),
+        remove_blocked=remove_blocked,
+    )
 
     await message.answer(LIST_USERS.format(
         users='\n'.join([
@@ -468,13 +555,96 @@ async def user_status(message: Message, command: CommandObject):
     else:
         org_name = org.name
 
-    await message.answer(USER_STATUS.format(
-        first_name=user.user.person.first_name,
-        last_name=user.user.person.last_name,
-        organization=org_name,
-        limit=user.user.calculation_limit,
-        used=user.num_calc
+    await message.answer(
+        USER_STATUS.format(user=create_user_link(model=user),
+                           organization=org_name,
+                           limit=user.user.calculation_limit,
+                           used=user.num_calc))
+
+
+@message_router.message(Command(commands=['search']))
+async def search_user(message: Message, command: CommandObject):
+    if message.from_user.username != config.bot.admin_name[1:]:
+        await message.answer(NOT_ALLOWED_COMMAND)
+        return
+    if command.args is None:
+        await message.answer(SEARCH_USAGE)
+        return
+
+    args = [a.strip() for a in command.args.split(',')]
+    users = search_users(
+        last_name=args[0] if args[0] != '' else None,
+        first_name=args[1] if len(args) > 1 and args[1] != '' else None,
+        organization=args[2] if len(args) > 2 and args[2] != '' else None,
+    )
+    users_str = []
+    for i, user in enumerate(users):
+        org = user.user.person.organization
+        if org is None:
+            org_name = '(неизвестно)'
+        else:
+            org_name = org.abbreviation
+
+        users_str.append(
+            f'{i + 1}. {create_user_link(model=user)} ({org_name})'
+        )
+    await message.answer(SEARCH_USERS.format(
+        count = len(users_str),
+        users='\n'.join(users_str)
     ))
+
+
+@message_router.message(Command(commands=['alter_limit']))
+async def alter_limit(message: Message, command: CommandObject):
+
+    if message.from_user.username != config.bot.admin_name[1:]:
+        await message.answer(NOT_ALLOWED_COMMAND)
+        return
+    if command.args is None:
+        await message.answer(ALTER_LIMIT_USAGE)
+        return
+
+    args = command.args.split()
+    if len(args) < 2:
+        await message.answer(ALTER_LIMIT_USAGE)
+        return
+
+    try:
+        idx = int(args[0])
+        limit = int(args[1])
+    except (ValueError, TypeError):
+        await message.answer(ALTER_LIMIT_USAGE)
+        return
+
+    user = get_tg_user(user_id=idx)
+    if user is None:
+        await message.answer(STATUS_NOT_FOUND)
+        return
+
+    org = user.user.person.organization
+    if org is None:
+        org_name = '(неизвестно)'
+    else:
+        org_name = org.name
+
+    try:
+        user.user.calculation_limit = limit
+        user.user.save()
+    except Exception:
+        await message.answer(COMMAND_ERROR)
+        return
+
+    await message.answer(ALTER_LIMIT_NOTIFY.format(
+        limit=limit
+    ))
+    await log_message(
+        message.bot,
+        ALTER_LIMIT_LOG.format(
+            user=create_user_link(model=user),
+            limit=limit,
+            admin=create_user_link(message.from_user)
+        )
+    )
 
 
 @message_router.message()

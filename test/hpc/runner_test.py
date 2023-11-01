@@ -64,7 +64,7 @@ def test_construct_command_with_filename():
         program='ls',
         allowed_args=['-l', '{}']
     )
-    assert runner.create_command(['-l', '{}'], 'path') == 'ls -l path'
+    assert runner.create_command(['-l', '{}'], 'path') == "ls -l 'path'"
 
 
 def test_construct_default_command():
@@ -73,7 +73,7 @@ def test_construct_default_command():
         allowed_args=['-l', '{}'],
         default_args=['-l', '{}']
     )
-    assert runner.create_command() == 'ls -l'
+    assert runner.create_command() == "ls -l ''"
 
 
 def test_construct_default_command_with_path():
@@ -82,4 +82,4 @@ def test_construct_default_command_with_path():
         allowed_args=['-l', '{}'],
         default_args=['-l', '{}']
     )
-    assert runner.create_command(filename='path') == 'ls -l path'
+    assert runner.create_command(filename='path') == "ls -l 'path'"

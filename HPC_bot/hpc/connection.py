@@ -1,4 +1,5 @@
 import os
+import re
 from stat import S_ISDIR
 from typing import Dict, Optional, Tuple
 from xml.etree import ElementTree
@@ -10,6 +11,13 @@ from pysftp import Connection as SFTPClient
 import logging
 import requests
 from requests.auth import HTTPBasicAuth
+
+# TODO: move this to config
+EXTENSIONS_WHITELIST = [".out", ".log", ".gjf", ".inp", ".err", ".fchk", ".xyz", ".cpcm", ".engrad", ".opt", ".hess", ".gbw"]
+FILES_WHITELIST = ['hessian', 'vibspectrum']
+
+
+FILTERED_EXT = [re.compile(s) for s in [r'\.tmp', r'\.tmp\..*']]
 
 
 class Connection(BaseModel):
@@ -111,6 +119,8 @@ class Connection(BaseModel):
         ssh = self.get_ssh_client()
 
         stdin, stdout, stderr = ssh.exec_command(command)
+        logging.debug(f'Executed command {command} at '
+                     f'{self.user}@{self.host}:{self.port}')
         stdin.close()
 
         return ''.join(stdout.readlines()), ''.join(stderr.readlines())
@@ -137,6 +147,12 @@ class Connection(BaseModel):
             path = f'{remote_path}/{file}'
             if self.is_dir_sftp(path):
                 self.get_by_sftp(path, local_path, recurse)
+                continue
+            basename, ext = os.path.splitext(os.path.basename(file))
+            if (
+                basename not in FILES_WHITELIST and
+                ext not in EXTENSIONS_WHITELIST
+            ):
                 continue
             sftp.get(
                 remotepath=path,

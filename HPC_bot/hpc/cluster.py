@@ -37,11 +37,9 @@ class Cluster(BaseModel):
     def find_suitable_runner(self, command: str) -> Tuple[Runner, List[str]]:
         args = None
         for runner in self.runners:
-            try:
-                args = runner.split_command(command)
-            except ValueError:
-                continue
-            break
+            args = runner.split_command(command, throws=False)
+            if args is not None:
+                break
 
         if args is None:
             return None, []
@@ -56,17 +54,27 @@ class Cluster(BaseModel):
     ) -> Tuple[str, str]:
 
         return self.connection.execute_by_ssh(
-            '' if chdir is None else f'cd {chdir};' +
+            ('' if chdir is None else f"cd '{chdir}';") +
             runner.create_command(args, filename)
         )
 
-    def perform_command(self, command: str) -> Optional[Tuple[str, str]]:
+    def perform_command(
+        self,
+        command: str,
+        filename: str = None,
+        chdir: str = None
+    ) -> Optional[Tuple[str, str]]:
         runner, args = self.find_suitable_runner(command)
 
         if runner is None:
             return None
 
-        return self.start_runner(runner, args)
+        return self.start_runner(
+            runner,
+            args,
+            filename,
+            chdir,
+        )
 
     def upload_file(
         self,

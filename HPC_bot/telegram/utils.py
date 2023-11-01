@@ -43,10 +43,14 @@ def create_user_link(user: User = None, model: TgUserModel = None) -> str:
 
     identifier = ', '.join(identifiers)
 
-    if user is not None and (model is None or not model.user.person.approved):
+    if model is None:
         name = user.full_name
     else:
         name = f'{model.user.person.first_name} {model.user.person.last_name}'
+
+    name = name.strip()
+    if name == '':
+        name = '???'
 
     return USER_LINK.format(tg_id=tg_id, name=name, identifier=identifier)
 

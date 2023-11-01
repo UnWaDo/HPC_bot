@@ -9,7 +9,7 @@ from aiogram.exceptions import TelegramMigrateToChat
 from aiogram.filters import ExceptionTypeFilter
 
 from HPC_bot.utils import config
-from HPC_bot.hpc.manager import update_db, check_updates
+from HPC_bot.hpc.manager import update_db, check_updates, upload_to_clusters, start_calculations
 from HPC_bot.hpc.manager import load_finished, send_to_cloud
 from HPC_bot.telegram.text_router import message_router
 from HPC_bot.telegram.chat_router import chat_router
@@ -20,9 +20,11 @@ from HPC_bot.telegram.manager import notify_on_finished
 async def cluster_updates(bot: Bot):
     while True:
         try:
-            check_updates()
-            load_finished()
-            send_to_cloud()
+            await upload_to_clusters()
+            await start_calculations()
+            await check_updates()
+            await load_finished()
+            await send_to_cloud()
             await notify_on_finished(bot)
         except asyncio.CancelledError:
             break
@@ -33,7 +35,7 @@ async def cluster_updates(bot: Bot):
                 exc_info=e,
                 stack_info=True
             )
-        if type(config.fetch_time) is int:
+        if isinstance(config.fetch_time, int):
             await asyncio.sleep(config.fetch_time)
             continue
         await asyncio.sleep(randint(
@@ -65,6 +67,7 @@ async def main() -> None:
         'my_chat_member',
     ])
     updates.cancel()
+    await updates
 
 
 if __name__ == "__main__":

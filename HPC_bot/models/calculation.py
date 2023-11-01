@@ -14,9 +14,13 @@ from ..utils import get_month_start
 
 class CalculationStatus(Enum):
     NOT_STARTED = 0
+    UPLOADED = 5
     PENDING = 10
     RUNNING = 50
-    FINISHED = 100
+
+    FINISHED_OK = 100
+    FAILED_TO_UPLOAD = 110
+
     LOADED = 200
     CLOUDED = 300
     SENDED = 1000
@@ -28,7 +32,19 @@ class CalculationStatus(Enum):
         if status == 'R':
             return CalculationStatus.RUNNING
 
-        return CalculationStatus.FINISHED
+        return CalculationStatus.FINISHED_OK
+
+    def __lt__(self, other):
+        return self.value < other.value
+
+    def __gt__(self, other):
+        return self.value > other.value
+
+    def __ge__(self, other):
+        return self.value >= other.value
+
+    def __le__(self, other):
+        return self.value <= other.value
 
 
 class SubmitType(Enum):
@@ -45,6 +61,8 @@ class BlockedException(Exception):
 
 class Calculation(BaseDBModel):
     name = CharField(50)
+    command = CharField(255)
+
     start_datetime = DateTimeField()
     end_datetime = DateTimeField(null=True)
     slurm_id = IntegerField(null=True)
@@ -65,6 +83,7 @@ class Calculation(BaseDBModel):
     @staticmethod
     def new_calculation(
         name: str,
+        command: str,
         user: User,
         submit_type: SubmitType,
         cluster: ClusterHPC
@@ -76,7 +95,7 @@ class Calculation(BaseDBModel):
             )
         if len(user.get_calculations(
             get_month_start())
-        ) > user.calculation_limit:
+        ) >= user.calculation_limit:
 
             raise CalculationLimitExceeded(
                 f'User #{user.id} exceeded its calculation limit'
@@ -89,6 +108,7 @@ class Calculation(BaseDBModel):
 
         return Calculation.create(
             name=name,
+            command=command,
             start_datetime=datetime.utcnow(),
             user=user,
             cluster=cluster_model,
@@ -101,6 +121,18 @@ class Calculation(BaseDBModel):
         return Calculation.select()
 
     @staticmethod
+    def get_not_started() -> List['Calculation']:
+        return (
+            Calculation.select(Calculation, Cluster, User)
+            .join(Cluster)
+            .switch(Calculation)
+            .join(User)
+            .where(
+                Calculation.status == CalculationStatus.NOT_STARTED.value
+            )
+        )
+
+    @staticmethod
     def get_unfinished() -> List['Calculation']:
         return (
             Calculation.select(Calculation, Cluster, User)
@@ -108,7 +140,7 @@ class Calculation(BaseDBModel):
             .switch(Calculation)
             .join(User)
             .where(
-                Calculation.status < CalculationStatus.FINISHED.value
+                Calculation.status < CalculationStatus.FINISHED_OK.value
             )
         )
 
