@@ -27,7 +27,7 @@ def create_calculation_path(calculation: Calculation) -> str:
         config.download_path,
         calculation.get_folder_name()
     )
-    os.makedirs(folder_name)
+    os.makedirs(folder_name, exist_ok=True)
 
     return os.path.join(
         folder_name,
@@ -42,10 +42,16 @@ def select_cluster(
 
     clusters = []  # type: List[Tuple[Cluster, Runner]]
 
-    for cluster in config.clusters:
-        runner = cluster.get_runner_by_extension(extension)
-        if runner is not None:
-            clusters.append((cluster, runner))
+    if command is None:
+        for cluster in config.clusters:
+            runner = cluster.get_runner_by_extension(extension)
+            if runner is not None:
+                clusters.append((cluster, runner))
+    else:
+        for cluster in config.clusters:
+            runner, _ = cluster.find_suitable_runner(command)
+            if runner is not None:
+                clusters.append((cluster, runner))
 
     if len(clusters) == 0:
         return None, None, None
@@ -60,40 +66,132 @@ def select_cluster(
     return cluster, runner, args
 
 
-def start_calculation(
-    path: str,
+def locate_clusters(
+    calculations: List[Calculation]
+ ) -> Dict[str, List[Calculation]]:
+    cluster_labels = set(c.cluster.label for c in calculations)
+
+    return {label: list(
+        filter(
+            lambda x: x.cluster.label == label,
+            calculations
+        )
+    ) for label in cluster_labels}
+
+
+async def upload_to_cluster(
     calculation: Calculation,
     cluster: Cluster,
-    runner: Runner,
-    args: List[str] = None
-):
-
-    remote_path = cluster.upload_file(
-        local_path=path,
-        local_root=config.download_path
+) -> str:
+    calculation_path = os.path.join(
+        config.download_path,
+        calculation.get_folder_name()
     )
 
-    basename = calculation.name
-    directory = os.path.dirname(remote_path)
-    if directory == '':
-        directory = None
+    try:
+        return cluster.upload_file(
+            local_path=calculation_path,
+            local_root=config.download_path
+        )
+    except Exception:
+        return None
 
-    stdout, _ = cluster.start_runner(
-        runner=runner,
-        args=args,
+
+async def upload_to_clusters():
+    calculations = Calculation.get_by_status(CalculationStatus.NOT_STARTED)
+
+    cluster_calc = locate_clusters(calculations)
+
+    updated = []
+    for cluster in config.clusters:
+
+        calculations = cluster_calc.get(cluster.label)
+
+        if calculations is None:
+            continue
+
+        for calculation in calculations:
+            path = await upload_to_cluster(calculation, cluster)
+
+            if path is None:
+                logging.warning(
+                    f'Failed to upload calculation {calculation.name}'
+                    f' to cluster {cluster.label}'
+                )
+                continue
+            else:
+                calculation.set_status(CalculationStatus.UPLOADED)
+            updated.append(calculation)
+
+    if updated:
+        with db.atomic():
+            Calculation.bulk_update(
+                updated,
+                fields=['status']
+            )
+
+
+def start_calculation(
+    calculation: Calculation,
+    cluster: Cluster,
+) -> bool:
+    basename = calculation.name
+    directory = f'{cluster.upload_path}/{calculation.get_folder_name()}'
+
+    result = cluster.perform_command(
+        command=calculation.command,
         filename=basename,
         chdir=directory
     )
+    if result is None:
+        logging.warning(f'Illegal command {calculation.command}')
+        return False
+
+    stdout, stderr = result
 
     matched = SLURM_ID_RE.search(stdout)
     if matched is None:
-        return
+        logging.warning(
+            'No slurm id returned '
+            f'while setting up calculation #{calculation.id} '
+            f'({directory}/{basename}). '
+            f'Output is {stdout}\nStderr is {stderr}')
+        return False
 
     slurm_id = int(matched.group(1))
 
     calculation.slurm_id = slurm_id
-    calculation.set_status(CalculationStatus.PENDING)
-    calculation.save()
+    return True
+
+
+async def start_calculations():
+    calculations = Calculation.get_by_status(CalculationStatus.UPLOADED)
+
+    cluster_calc = locate_clusters(calculations)
+
+    updated = []
+    for cluster in config.clusters:
+
+        calculations = cluster_calc.get(cluster.label)
+
+        if calculations is None:
+            continue
+
+        for calculation in calculations:
+            started = start_calculation(calculation, cluster)
+
+            if started:
+                calculation.set_status(CalculationStatus.PENDING)
+                updated.append(started)
+            else:
+                logging.warning(f'Failed to start calculation {calculation.name}')
+
+    if updated:
+        with db.atomic():
+            Calculation.bulk_update(
+                calculations,
+                fields=['status', 'slurm_id']
+            )
 
 
 def update_db():
@@ -109,27 +207,24 @@ def update_db():
         )
 
 
-def check_updates():
+async def check_updates():
     calculations = Calculation.get_unfinished()
 
-    cluster_labels = set(c.cluster.label for c in calculations)
+    cluster_calc = locate_clusters(calculations)
 
-    cluster_calc = {label: list(filter(
-
-        lambda x: x.cluster.label == label,
-        calculations
-
-    )) for label in cluster_labels}
-
-    updated = []
+    updated_time = []
+    updated_status = []
     for cluster in config.clusters:
 
         if cluster_calc.get(cluster.label) is None:
             continue
 
-        stdout, _ = cluster.start_runner(SLURM_RUNNER)
+        stdout, stderr = cluster.start_runner(SLURM_RUNNER)
+        logging.debug(f'Slurm output is {stdout}\n, stderr is {stderr}')
 
-        slurm_data = [line.split() for line in stdout.split('\n')[1:]]
+        slurm_data = [line.split() for line in filter(
+            lambda x: x.strip(), stdout.split('\n')[1:]
+        )]
 
         slurm_status = [
             CalculationStatus.from_slurm(status) for _, status in slurm_data
@@ -144,34 +239,33 @@ def check_updates():
                 index = slurm_ids.index(calc.slurm_id)
             except ValueError:
                 calc.end_datetime = datetime.utcnow()
-                calc.set_status(CalculationStatus.FINISHED)
-                updated.append(calc)
+                calc.set_status(CalculationStatus.FINISHED_OK)
+                updated_time.append(calc)
                 continue
 
             if calc.get_status() >= slurm_status[index]:
                 continue
             calc.set_status(slurm_status[index])
-            updated.append(calc)
+            updated_status.append(calc)
 
-    if len(updated) > 0:
+    if updated_time:
         with db.atomic():
             Calculation.bulk_update(
-                updated,
-                fields=['end_datetime', 'status']
+                updated_time,
+                fields=['status', 'end_datetime']
+            )
+    if updated_status:
+        with db.atomic():
+            Calculation.bulk_update(
+                updated_status,
+                fields=['status']
             )
 
 
-def load_finished():
-    calculations = Calculation.get_by_status(CalculationStatus.FINISHED)
+async def load_finished():
+    calculations = Calculation.get_by_status(CalculationStatus.FINISHED_OK)
 
-    cluster_labels = set(c.cluster.label for c in calculations)
-
-    cluster_calc = {label: list(filter(
-
-        lambda x: x.cluster.label == label,
-        calculations
-
-    )) for label in cluster_labels}
+    cluster_calc = locate_clusters(calculations)
 
     updated = []
     for cluster in config.clusters:
@@ -199,17 +293,10 @@ def load_finished():
             )
 
 
-def send_to_cloud():
+async def send_to_cloud():
     calculations = Calculation.get_by_status(CalculationStatus.LOADED)
 
-    cluster_labels = set(c.cluster.label for c in calculations)
-
-    cluster_calc = {label: list(filter(
-
-        lambda x: x.cluster.label == label,
-        calculations
-
-    )) for label in cluster_labels}
+    cluster_calc = locate_clusters(calculations)
 
     updated = []
     for cluster in config.clusters:
