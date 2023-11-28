@@ -1,0 +1,14 @@
+{
+  "database_url": {
+    "drivername": "postgresql+asyncpg",
+    "username": "stas",
+    "password": "12345678",
+    "host": "localhost",
+    "port": 5430,
+    "database": "infochem"
+  },
+  "telegram_bot_token": "5363042965:AAESGkBdI7Ih4DcEDygzO1RKXC83ksdIi6c",
+  "telegram_log_chat_id": -1001966423920,
+  "log_level": "DEBUG",
+  "log_file": "log.log"
+}
