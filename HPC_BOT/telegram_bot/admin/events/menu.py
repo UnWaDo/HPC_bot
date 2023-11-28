@@ -28,4 +28,8 @@ async def admin_message_handler(
     if isinstance(event, Message):
         await event.answer(**event_args)
     elif isinstance(event, CallbackQuery):
-        await event.message.edit_text(**event_args)
+        if event.message.photo:
+            await event.message.delete()
+            await event.message.answer(**event_args)
+        else:
+            await event.message.edit_text(**event_args)

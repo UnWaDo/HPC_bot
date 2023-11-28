@@ -24,7 +24,7 @@ async def admin_callback_handler(
         "text": parse_texts(pathToTexts, "users_menu"),
         "reply_markup": users_menu_keyboard,
     }
-    return await edit_text(callback_query, kwargs)
+    return await edit_text(callback_query, **kwargs)
 
 
 @adminRouter.callback_query(IsAdmin(), F.data == UsersCallbackData.ALL_USERS_LIST.value)

@@ -51,7 +51,7 @@ async def admin_callback_handler(
         "text": parse_texts(pathToTexts, "organizations_menu"),
         "reply_markup": organizations_menu_keyboard,
     }
-    return await edit_text(callback_query, kwargs)
+    return await edit_text(callback_query, is_delete_photo=True, **kwargs)
 
 
 # ALL ORGANIZATIONS LIST #
@@ -523,26 +523,28 @@ async def admin_callback_handler(
         return not_found_organization(
             callback_query, pathToTexts, back_to_organization_menu
         )
-    tg_users_list = await telegram_user_api.get_users_by_organization(organization_id)
-    if tg_users_list:
-        row_list = list()
-        for tg_user in tg_users_list:
-            user = tg_user.user
-            row_list.append(
-                [
-                    tg_user.telegram_id,
-                    tg_user.telegram_username,
-                    user.username,
-                    user.first_name,
-                ]
+    response = await telegram_user_api.get_users_by_organization(organization_id)
+    if response.status == Status.OK:
+        tg_users_list = response.body.response_data
+        if tg_users_list:
+            row_list = list()
+            for tg_user in tg_users_list:
+                user = tg_user.user
+                row_list.append(
+                    [
+                        tg_user.telegram_id,
+                        tg_user.telegram_username,
+                        user.username,
+                        user.first_name,
+                    ]
+                )
+            path = await create_table(
+                f'User of {data.get("abbreviate", None)} organization',
+                ["telegram id", "telegram username", "username", "first_name"],
+                row_list,
             )
-        path = await create_table(
-            f'User of {data.get("abbreviate", None)} organization',
-            ["telegram id", "telegram username", "username", "first_name"],
-            row_list,
-        )
-        await send_file(callback_query, path)
-    else:
-        await callback_query.message.answer(
-            text=Code.BAD_RESPONSE.value, reply_markup=back_to_organizations_menu
-        )
+            await send_file(callback_query, path)
+        else:
+            await callback_query.message.answer(
+                text=Code.BAD_RESPONSE.value, reply_markup=back_to_organizations_menu
+            )

@@ -24,7 +24,8 @@ class OrganizationAPI(BaseAPI):
             )
             if organization_duplicate:
                 return self.not_unique_data("abbreviate")
-            return await self._insert_model(Organization, session, abbreviate=abbreviate, full_name=full_name, photo=photo)
+            result = await self._insert_model(Organization, session, abbreviate=abbreviate, full_name=full_name, photo=photo)
+            return self._check_result_model(result, Organization)
 
     async def delete_organization(
         self, organization_id: int = None, abbreviate: str = None
@@ -79,10 +80,7 @@ class OrganizationAPI(BaseAPI):
             for organization in organizations:
                 if not isinstance(organization, Organization):
                     return self.bad_response
-            return APIResponse(
-                status=Status.OK,
-                body=Body(code=Code.SUCCESS, response_data=organizations),
-            )
+            return self.success(response_data=organizations)
 
     async def search_organizations(self, query: str) -> APIResponse:
         query = query.lower()
@@ -97,10 +95,7 @@ class OrganizationAPI(BaseAPI):
                         result_list.append(organization)
                 else:
                     return self.bad_response
-
-        return APIResponse(
-            status=Status.OK, body=Body(code=Code.SUCCESS, response_data=result_list)
-        )
+        return self.success(response_data=result_list)
 
     async def add_photo(
         self, organization: Union[int, Organization], photo_link: str
@@ -133,7 +128,10 @@ class OrganizationAPI(BaseAPI):
                 return self.bad_params
 
             result = await self._update_models(Organization, session, {"abbreviate": new_abbreviate}, id=organization.id)
-            return self._check_result_model(result, Organization)
+            if result is not None:
+                return self._check_result_model(result[0], Organization)
+            else:
+                return self.bad_response
 
     async def change_full_name(
         self, organization: Union[int, Organization], new_full_name: str
@@ -145,4 +143,7 @@ class OrganizationAPI(BaseAPI):
                 return self.bad_params
 
             result = await self._update_models(Organization, session, {"full_name": new_full_name}, id=organization.id)
-            return self._check_result_model(result, Organization)
+            if result is not None:
+                return self._check_result_model(result[0], Organization)
+            else:
+                return self.bad_response

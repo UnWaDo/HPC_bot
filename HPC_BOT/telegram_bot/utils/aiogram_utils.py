@@ -16,12 +16,16 @@ def _validate_event(event: Union[CallbackQuery, Message]) -> Message:
         )
 
 
-async def edit_text(event: Union[CallbackQuery, Message], kwargs: dict) -> None:
+async def edit_text(event: Union[CallbackQuery, Message], is_delete_photo: bool = False, **kwargs) -> None:
     message = _validate_event(event)
 
     if message.photo:
-        kwargs["caption"] = kwargs.pop("text")
-        return message.edit_caption(**kwargs)
+        if is_delete_photo:
+            await message.delete()
+            return await message.answer(**kwargs)
+        else:
+            kwargs["caption"] = kwargs.pop("text")
+            return message.edit_caption(**kwargs)
 
     return message.edit_text(**kwargs)
 
