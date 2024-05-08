@@ -93,7 +93,8 @@ async def upload_to_cluster(
             local_path=calculation_path,
             local_root=config.download_path
         )
-    except Exception:
+    except Exception as e:
+        logging.exception(e)
         return None
 
 
