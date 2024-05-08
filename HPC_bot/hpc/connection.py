@@ -13,7 +13,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # TODO: move this to config
-EXTENSIONS_WHITELIST = [".out", ".log", ".gjf", ".inp", ".err", ".fchk", ".xyz", ".cpcm", ".engrad", ".opt", ".hess", ".gbw"]
+EXTENSIONS_WHITELIST = [".out", ".log", ".gjf", ".inp", ".err", ".fchk", ".xyz", ".cpcm", ".engrad", ".opt", ".hess", ".gbw", ".molden"]
 FILES_WHITELIST = ['hessian', 'vibspectrum']
 
 
