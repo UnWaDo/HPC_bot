@@ -45,6 +45,8 @@ async def cluster_updates(bot: Bot):
 
 
 async def main() -> None:
+    await update_db()
+
     dp = Dispatcher()
     dp.include_router(message_router)
     dp.include_router(chat_router)
@@ -72,7 +74,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     os.makedirs(config.download_path, exist_ok=True)
-    update_db()
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):

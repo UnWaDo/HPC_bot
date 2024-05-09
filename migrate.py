@@ -1,28 +1,32 @@
+import asyncio
 from HPC_bot.models import *
 from csv import DictReader
 
 
 TABLES = [Organization, Person, User, TelegramUser, Cluster, Calculation]
 
-db.connect()
-
-db.drop_tables(TABLES[::-1])
-db.create_tables(TABLES)
 
 organizations = {}
 
-with open('organizations.csv', 'r', encoding='utf-8') as orgs:
-    org_reader = DictReader(orgs)
+async def main():
+    with open('organizations.csv', 'r', encoding='utf-8') as orgs:
+        org_reader = DictReader(orgs)
 
-    for row in org_reader:
-        organizations[row['label']] = Organization(
-            name=row['name'],
-            abbreviation=row['alias'],
-            parent=organizations.get(row['parent'])
-        )
+        for row in org_reader:
+            organizations[row['label']] = Organization(
+                name=row['name'],
+                abbreviation=row['alias'],
+                parent=organizations.get(row['parent'])
+            )
 
-with db.atomic():
-    for org in organizations.values():
-        org.save()
+    async with sessionmaker() as session:
+        async with session.begin():
 
-db.close()
+            session.add_all(organizations.values())
+            
+            await session.commit()
+
+    await engine.dispose()
+
+if __name__ == '__main__':
+    asyncio.run(main())

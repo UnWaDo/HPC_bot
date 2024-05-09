@@ -2,11 +2,12 @@ import asyncio
 import logging
 from typing import List
 from aiogram import Bot
+from sqlalchemy import or_, select
 
 from .utils import log_message, create_user_link
 
 from ..utils import config
-from ..models import db, Calculation, Cluster, CalculationStatus, SubmitType
+from ..models import sessionmaker, Calculation, Cluster, CalculationStatus, SubmitType
 from ..models import User as UserModel
 from ..models import TelegramUser as TelegramUserModel
 
@@ -29,18 +30,18 @@ CALCULATION_FINISHED_LOG = (
 
 
 async def notify_on_finished(bot: Bot):
-    calculations: List[Calculation] = (
-        Calculation.select(
-            Calculation, Cluster, UserModel, TelegramUserModel
-        )
-        .join(Cluster).switch(Calculation)
-        .join(UserModel)
-        .join(TelegramUserModel)
-        .where((
-                (Calculation.status == CalculationStatus.CLOUDED.value) |
-                (Calculation.status == CalculationStatus.FAILED_TO_UPLOAD.value)
-            ) & (Calculation.submit_type == SubmitType.TELEGRAM.value))
-    )
+
+    query = select(Calculation).where(
+        Calculation.submit_type == SubmitType.TELEGRAM).where(
+            or_(Calculation.status == CalculationStatus.CLOUDED,
+            Calculation.status == CalculationStatus.FAILED_TO_UPLOAD))
+
+    async with sessionmaker() as session:
+        async with session.begin():
+            result = await session.execute(query)
+
+            calculations = result.scalars().all()
+
     users: List[TelegramUserModel] = [calc.user.tg_user[0]
                                       for calc in calculations]
 
@@ -89,9 +90,10 @@ async def notify_on_finished(bot: Bot):
                 exc_info=e
             )
 
-    if len(updated) > 0:
-        with db.atomic():
-            Calculation.bulk_update(
-                updated,
-                fields=['status']
-            )
+    if updated:
+        async with sessionmaker() as session:
+            async with session.begin():
+                for update in updated:
+                    session.add(update)
+
+                await session.commit()

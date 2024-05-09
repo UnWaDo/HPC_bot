@@ -89,13 +89,14 @@ async def left_chat(event: ChatMemberUpdated):
 @chat_router.message(Command(commands=['access']))
 async def register(message: Message):
     user = message.from_user
-    tg_user = TelegramUser.authenticate(user.id, True)
+
+    tg_user = await TelegramUser.authenticate(user.id, True)
 
     if tg_user is not None:
         await message.reply(ALREADY_GRANTED)
         return
 
-    tg_user = TelegramUser.register(
+    tg_user = await TelegramUser.register(
         tg_id=user.id,
         first_name=user.first_name,
         last_name=user.last_name if user.last_name is not None else ''

@@ -9,7 +9,7 @@ from typing import List, Tuple, Dict
 from .cluster import Cluster
 from .runner import Runner
 from ..utils import config
-from ..models import db, Calculation, CalculationStatus
+from ..models import sessionmaker, Calculation, CalculationStatus
 from ..models import Cluster as ClusterModel
 
 
@@ -99,7 +99,7 @@ async def upload_to_cluster(
 
 
 async def upload_to_clusters():
-    calculations = Calculation.get_by_status(CalculationStatus.NOT_STARTED)
+    calculations = await Calculation.get_by_status(CalculationStatus.NOT_STARTED)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -125,11 +125,13 @@ async def upload_to_clusters():
             updated.append(calculation)
 
     if updated:
-        with db.atomic():
-            Calculation.bulk_update(
-                updated,
-                fields=['status']
-            )
+        async with sessionmaker() as session:
+            async with session.begin():
+                for update in updated:
+                    session.add(update)
+
+                await session.commit()
+
 
 
 def start_calculation(
@@ -166,7 +168,7 @@ def start_calculation(
 
 
 async def start_calculations():
-    calculations = Calculation.get_by_status(CalculationStatus.UPLOADED)
+    calculations = await Calculation.get_by_status(CalculationStatus.UPLOADED)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -188,28 +190,34 @@ async def start_calculations():
                 logging.warning(f'Failed to start calculation {calculation.name}')
 
     if updated:
-        with db.atomic():
-            Calculation.bulk_update(
-                calculations,
-                fields=['status', 'slurm_id']
-            )
+        async with sessionmaker() as session:
+            async with session.begin():
+                for update in updated:
+                    session.add(update)
+
+                await session.commit()
 
 
-def update_db():
-    clusters = ClusterModel.get_all()
+async def update_db():
+    clusters = await ClusterModel.get_all()
 
+    new_clusters = []
     for cluster in config.clusters:
         if any(c.label == cluster.label for c in clusters):
             continue
 
-        ClusterModel.create(
-            name=cluster.label,
-            label=cluster.label
-        )
+        new_clusters.append(ClusterModel(name=cluster.label, label=cluster.label))
+
+    async with sessionmaker() as session:
+        async with session.begin():
+            for cluster in new_clusters:
+                session.add(cluster)
+
+            await session.commit()
 
 
 async def check_updates():
-    calculations = Calculation.get_unfinished()
+    calculations = await Calculation.get_unfinished()
 
     cluster_calc = locate_clusters(calculations)
 
@@ -249,22 +257,17 @@ async def check_updates():
             calc.set_status(slurm_status[index])
             updated_status.append(calc)
 
-    if updated_time:
-        with db.atomic():
-            Calculation.bulk_update(
-                updated_time,
-                fields=['status', 'end_datetime']
-            )
-    if updated_status:
-        with db.atomic():
-            Calculation.bulk_update(
-                updated_status,
-                fields=['status']
-            )
+    if updated_time or updated_status:
+        async with sessionmaker() as session:
+            async with session.begin():
+                for update in updated_time + updated_status:
+                    session.add(update)
+
+                await session.commit()
 
 
 async def load_finished():
-    calculations = Calculation.get_by_status(CalculationStatus.FINISHED_OK)
+    calculations = await Calculation.get_by_status(CalculationStatus.FINISHED_OK)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -286,16 +289,17 @@ async def load_finished():
             calc.set_status(CalculationStatus.LOADED)
             updated.append(calc)
 
-    if len(updated) > 0:
-        with db.atomic():
-            Calculation.bulk_update(
-                updated,
-                fields=['status']
-            )
+    if updated:
+        async with sessionmaker() as session:
+            async with session.begin():
+                for update in updated:
+                    session.add(update)
+
+                await session.commit()
 
 
 async def send_to_cloud():
-    calculations = Calculation.get_by_status(CalculationStatus.LOADED)
+    calculations = await Calculation.get_by_status(CalculationStatus.LOADED)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -322,9 +326,10 @@ async def send_to_cloud():
             calc.set_status(CalculationStatus.CLOUDED)
             updated.append(calc)
 
-    if len(updated) > 0:
-        with db.atomic():
-            Calculation.bulk_update(
-                updated,
-                fields=['status']
-            )
+    if updated:
+        async with sessionmaker() as session:
+            async with session.begin():
+                for update in updated:
+                    session.add(update)
+
+                await session.commit()

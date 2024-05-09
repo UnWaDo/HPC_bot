@@ -1,8 +1,8 @@
-from peewee import BigIntegerField, ForeignKeyField, DoesNotExist, JOIN
+from sqlalchemy import BigInteger, ForeignKey
+from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
-from .base_model import BaseDBModel
+from .base_model import BaseDBModel, sessionmaker
 from .user import User
-from .person import Person
 
 
 class UnauthorizedAccessError(Exception):
@@ -10,42 +10,44 @@ class UnauthorizedAccessError(Exception):
 
 
 class TelegramUser(BaseDBModel):
-    tg_id = BigIntegerField(primary_key=True)
+    __tablename__ = 'tg_user'
 
-    user = ForeignKeyField(
-        model=User,
-        backref='tg_user'
-    )
+    tg_id: Mapped[int] = mapped_column(BigInteger(), primary_key=True)
 
-    class Meta:
-        table_name = 'tg_user'
+    user_id: Mapped[int] = mapped_column(ForeignKey('hpc_user.id'))
+    user: Mapped[User] = relationship(back_populates='tg_user', lazy='joined')
 
     @staticmethod
-    def authenticate(tg_id: int, no_throw: bool = False,
-                     apply_join: bool = False) -> 'TelegramUser':
-        try:
-            if not apply_join:
-                user = TelegramUser.get_by_id(tg_id)
-            else:
-                users = (TelegramUser.select(TelegramUser, User, Person)
-                         .join(User)
-                         .join(Person)
-                         .where(TelegramUser.tg_id == tg_id)
-                         )
-                if len(users) == 0:
-                    user = None
-                else:
-                    user = users[0]
-        except DoesNotExist:
-            user = None
+    async def authenticate(tg_id: int,
+                           no_throw: bool = False,
+                           apply_join: bool = False) -> 'TelegramUser':
+        async with sessionmaker() as session:
+            async with session.begin():
 
-        if user is None and not no_throw:
+                options = None
+                if apply_join:
+                    options = [joinedload(TelegramUser.user)]
+
+                user = await session.get(TelegramUser, tg_id, options=options)
+
+        if user is not None:
+            return user
+
+        if not no_throw:
             raise UnauthorizedAccessError(
-                'User with id %d is unauthorized' % tg_id)
+                f'User with id {tg_id} is unauthorized')
+
         return user
 
     @staticmethod
-    def register(tg_id: int, first_name: str, last_name: str):
-        user = User.register(first_name, last_name)
+    async def register(tg_id: int, first_name: str, last_name: str):
+        async with sessionmaker() as session:
+            async with session.begin():
+                user = await User.register(first_name, last_name)
 
-        return TelegramUser.create(tg_id=tg_id, user=user)
+                tg_user = TelegramUser(tg_id=tg_id, user=user)
+                session.add(tg_user)
+
+                await session.commit()
+
+        return tg_user

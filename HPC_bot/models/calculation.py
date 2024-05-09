@@ -1,18 +1,20 @@
-from datetime import datetime
+import enum
 import os
-from typing import List, Tuple
-from peewee import CharField, ForeignKeyField, DateTimeField, IntegerField
-from enum import Enum
+from datetime import datetime
+from typing import List
 
-from .base_model import BaseDBModel
-from .cluster import Cluster
-from .user import User
+from sqlalchemy import DateTime, ForeignKey, String, func, select
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..hpc import Cluster as ClusterHPC
 from ..utils import get_month_start
+from .base_model import BaseDBModel, sessionmaker
+from .cluster import Cluster
+from .user import User
+from .utils import IntEnum
 
 
-class CalculationStatus(Enum):
+class CalculationStatus(enum.Enum):
     NOT_STARTED = 0
     UPLOADED = 5
     PENDING = 10
@@ -47,7 +49,7 @@ class CalculationStatus(Enum):
         return self.value <= other.value
 
 
-class SubmitType(Enum):
+class SubmitType(enum.Enum):
     TELEGRAM = 0
 
 
@@ -60,116 +62,134 @@ class BlockedException(Exception):
 
 
 class Calculation(BaseDBModel):
-    name = CharField(50)
-    command = CharField(255)
+    __tablename__ = 'calculation'
 
-    start_datetime = DateTimeField()
-    end_datetime = DateTimeField(null=True)
-    slurm_id = IntegerField(null=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
-    status = IntegerField(choices=[(e.value, e.name)
-                          for e in CalculationStatus])
-    submit_type = IntegerField(choices=[(e.value, e.name) for e in SubmitType])
+    name: Mapped[str] = mapped_column(String(50))
+    command: Mapped[str] = mapped_column(String(255))
 
-    user = ForeignKeyField(
-        model=User,
-        backref='calculations'
-    )
-    cluster = ForeignKeyField(
-        model=Cluster,
-        backref='calculations'
-    )
+    start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True),
+                                                     default=func.now())
+    end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True),
+                                                   nullable=True)
+
+    slurm_id: Mapped[int] = mapped_column(nullable=True)
+
+    status: Mapped[CalculationStatus] = mapped_column(
+        IntEnum(CalculationStatus), default=CalculationStatus.NOT_STARTED)
+    submit_type: Mapped[SubmitType] = mapped_column(
+        IntEnum(SubmitType), default=SubmitType.TELEGRAM)
+
+    user_id: Mapped[int] = mapped_column(ForeignKey('hpc_user.id'))
+    user: Mapped[User] = relationship(back_populates='calculations',
+                                      lazy='joined')
+
+    cluster_id: Mapped[int] = mapped_column(ForeignKey('cluster.id'))
+    cluster: Mapped[Cluster] = relationship(back_populates='calculations',
+                                            lazy='joined')
 
     @staticmethod
-    def new_calculation(
-        name: str,
-        command: str,
-        user: User,
-        submit_type: SubmitType,
-        cluster: ClusterHPC
-    ) -> 'Calculation':
+    async def new_calculation(name: str, command: str, user: User,
+                              submit_type: SubmitType,
+                              cluster: ClusterHPC) -> 'Calculation':
 
         if user.blocked:
-            raise BlockedException(
-                f'User #{user.id} is blocked'
-            )
+            raise BlockedException(f'User #{user.id} is blocked')
+
         if len(user.get_calculations(
-            get_month_start())
-        ) >= user.calculation_limit:
+                get_month_start())) >= user.calculation_limit:
 
             raise CalculationLimitExceeded(
-                f'User #{user.id} exceeded its calculation limit'
-            )
+                f'User #{user.id} exceeded its calculation limit')
 
-        cluster_model, _ = Cluster.get_or_create(
-            label=cluster.label,
-            defaults={'name': cluster.label}
-        )
+        cluster_model = Cluster.get_or_create(cluster.label, cluster.label)
 
-        return Calculation.create(
-            name=name,
-            command=command,
-            start_datetime=datetime.utcnow(),
-            user=user,
-            cluster=cluster_model,
-            status=CalculationStatus.NOT_STARTED.value,
-            submit_type=submit_type.value
-        )
+        async with sessionmaker() as session:
+            async with session.begin():
 
-    @staticmethod
-    def get_all() -> List['Calculation']:
-        return Calculation.select()
+                calculation = Calculation(
+                    name=name,
+                    command=command,
+                    user=user,
+                    cluster=cluster_model,
+                    submit_type=submit_type,
+                )
+                session.add(calculation)
+
+                await session.commit()
+
+                return calculation
 
     @staticmethod
-    def get_not_started() -> List['Calculation']:
-        return (
-            Calculation.select(Calculation, Cluster, User)
-            .join(Cluster)
-            .switch(Calculation)
-            .join(User)
-            .where(
-                Calculation.status == CalculationStatus.NOT_STARTED.value
-            )
-        )
+    async def get_all() -> List['Calculation']:
+        async with sessionmaker() as session:
+            async with session.begin():
+
+                query = select(Calculation).order_by(
+                    Calculation.start_datetime)
+
+                result = await session.execute(query)
+
+                return result.scalars().all()
 
     @staticmethod
-    def get_unfinished() -> List['Calculation']:
-        return (
-            Calculation.select(Calculation, Cluster, User)
-            .join(Cluster)
-            .switch(Calculation)
-            .join(User)
-            .where(
-                Calculation.status < CalculationStatus.FINISHED_OK.value
-            )
-        )
+    async def get_not_started() -> List['Calculation']:
+        async with sessionmaker() as session:
+            async with session.begin():
+
+                query = select(Calculation).where(
+                    Calculation.status ==
+                    CalculationStatus.NOT_STARTED).order_by(
+                        Calculation.start_datetime)
+
+                result = await session.execute(query)
+
+                return result.scalars().all()
 
     @staticmethod
-    def get_by_status(status: CalculationStatus) -> List['Calculation']:
-        return (
-            Calculation.select(Calculation, Cluster, User)
-            .join(Cluster)
-            .switch(Calculation)
-            .join(User)
-            .where(
-                Calculation.status == status.value
-            )
-        )
+    async def get_unfinished() -> List['Calculation']:
+        async with sessionmaker() as session:
+            async with session.begin():
+
+                query = select(Calculation).where(
+                    Calculation.status <
+                    CalculationStatus.FINISHED_OK).order_by(
+                        Calculation.start_datetime)
+
+                result = await session.execute(query)
+
+                return result.scalars().all()
+
+    @staticmethod
+    async def get_by_status(status: CalculationStatus) -> List['Calculation']:
+        async with sessionmaker() as session:
+            async with session.begin():
+
+                query = select(Calculation).where(
+                    Calculation.status == status).order_by(
+                        Calculation.start_datetime)
+
+                result = await session.execute(query)
+
+                return result.scalars().all()
 
     def get_status(self) -> CalculationStatus:
-        return CalculationStatus(self.status)
+        return self.status
 
     def set_status(self, e: CalculationStatus):
-        self.status = e.value
+        self.status = e
 
     def get_submit_type(self) -> SubmitType:
-        return SubmitType(self.status)
+        return self.submit_type
 
     def get_folder_name(self) -> str:
         name, _ = os.path.splitext(self.name)
 
-        return '{timestamp}_{user_id}_{filename}'.format(
-            timestamp=int(datetime.timestamp(self.start_datetime)),
-            user_id=self.user_id,
-            filename=name
-        )
+        data = [
+            int(datetime.timestamp(self.start_datetime)),
+            self.user_id,
+            name,
+        ]
+
+        return '_'.join(map(str, data))

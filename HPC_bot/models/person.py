@@ -1,24 +1,32 @@
-from typing import Optional, Tuple
-from peewee import CharField, ForeignKeyField, BooleanField
+from typing import Optional, Tuple, TYPE_CHECKING
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .base_model import BaseDBModel
+from .base_model import BaseDBModel, sessionmaker
 from .organization import Organization
+
+if TYPE_CHECKING:
+    from .user import User
 
 
 class Person(BaseDBModel):
-    first_name = CharField(50)
-    last_name = CharField(50)
+    __tablename__ = 'person'
 
-    registered = BooleanField(default=False)
-    approved = BooleanField(default=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
-    organization = ForeignKeyField(
-        model=Organization,
-        backref='persons',
-        null=True
-    )
+    first_name: Mapped[str] = mapped_column(String(50))
+    last_name: Mapped[str] = mapped_column(String(50))
 
-    def update_from_raw_data(
+    registered: Mapped[bool] = mapped_column(default=False)
+    approved: Mapped[bool] = mapped_column(default=False)
+
+    organization_id: Mapped[int] = mapped_column(ForeignKey('organization.id'))
+    organization: Mapped[Organization] = relationship(back_populates='persons',
+                                                      lazy='joined')
+
+    user: Mapped['User'] = relationship(back_populates='person')
+
+    async def update_from_raw_data(
         self,
         first_name: str = None,
         last_name: str = None,
@@ -42,17 +50,22 @@ class Person(BaseDBModel):
             result[1] = self.last_name
 
         if organization is not None and organization != '':
-            organizations = Organization.find_similar(organization)
+            organizations = await Organization.find_similar(organization)
 
             if len(organizations) == 1:
-                self.organization = organizations[0]
+                if self.organization.id != organizations[0].id:
+                    self.organization = organizations[0]
+
                 result[2] = self.organization.abbreviation
             else:
                 result[2] = ''
 
         if any(x is not None and x != '' for x in result):
-            self.approved = False
+            async with sessionmaker() as session:
+                async with session.begin():
+                    self.approved = False
 
-            self.save()
+                    session.add(self)
+                    await session.commit()
 
         return tuple(result)

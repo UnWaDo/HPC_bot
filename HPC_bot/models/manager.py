@@ -1,121 +1,98 @@
-from datetime import datetime, timedelta
-from peewee import fn, JOIN
-from typing import Iterable, Union
+from datetime import datetime
+from sqlalchemy import func, or_, select
+from typing import Sequence
 
 from . import User, TelegramUser, Person, Calculation, Organization
 from .user import User
+from .base_model import sessionmaker
 
 
-def get_all_with_calcs(since: datetime = None,
-                       remove_blocked: bool = False) -> Iterable[TelegramUser]:
+async def get_all_with_calcs(
+        since: datetime = None,
+        remove_blocked: bool = False) -> Sequence[TelegramUser]:
+
+    subquery = select(Calculation.user_id).group_by(Calculation.user_id)
+
     if since is not None:
-        calculations = Calculation.select(Calculation).where(
-            (Calculation.start_datetime >= since))
-    else:
-        calculations = Calculation.select(Calculation)
+        subquery = subquery.where(Calculation.start_datetime >= since)
 
-    select = (
-        TelegramUser.select(TelegramUser, User, Person,
-                            fn.COUNT(calculations.c.id).alias('num_calc'))
-        .join(User)
-        .join(Person)
-        .join(calculations, JOIN.LEFT_OUTER,
-              on=(calculations.c.user_id == User.id))
-        .group_by(TelegramUser, User, Person))
+    query = select(TelegramUser).where(TelegramUser.user_id.in_(subquery))
 
     if remove_blocked:
-        select = select.where(~User.blocked)
-    return select
+        query = query.join(User).where(~User.blocked)
+
+    async with sessionmaker() as session:
+        async with session.begin():
+            result = await session.execute(query)
+
+            return result.scalars().all()
 
 
-def search_users(
-    last_name: str = None,
-    first_name: str = None,
-    organization: str = None
-) -> Iterable[TelegramUser]:
-    select = (
-        TelegramUser.select(
-            TelegramUser,
-            User,
-            Person,
-            Organization,
-        )
-        .join(User)
-        .join(Person)
-        .join(Organization, JOIN.LEFT_OUTER)
-    )
+async def search_users(last_name: str = None,
+                       first_name: str = None,
+                       organization: str = None) -> Sequence[TelegramUser]:
+
+    query = select(TelegramUser).join(User).join(Person)
+
     if last_name is not None:
-        select = select.where(Person.last_name.ilike(last_name))
+        query = query.where(Person.last_name.ilike(last_name))
+
     if first_name is not None:
-        select = select.where(Person.first_name.ilike(first_name))
+        query = query.where(Person.first_name.ilike(first_name))
+
     if organization is not None:
-        select = select.where(
-            Organization.name.ilike(organization) |
-            Organization.abbreviation.ilike(organization)
-        )
-    return select
+        query = query.where(
+            or_(Organization.name.ilike(organization),
+                Organization.abbreviation.ilike(organization)))
+
+    async with sessionmaker() as session:
+        async with session.begin():
+            result = await session.execute(query)
+
+            return result.scalars().all()
 
 
-def get_tg_user(tg_id: int = None, user_id: int = None) -> TelegramUser:
+async def get_tg_user(tg_id: int = None, user_id: int = None) -> TelegramUser:
+
     if tg_id is None and user_id is None:
         return None
 
-    select = (
-        TelegramUser.select(
-            TelegramUser,
-            User,
-            Person,
-            Organization,
-        )
-        .join(User)
-        .join(Person)
-        .join(Organization, JOIN.LEFT_OUTER)
-    )
+    query = select(TelegramUser).join(User)
+
     if tg_id is not None:
-        select = select.where(TelegramUser.tg_id == tg_id)
+        query = query.where(TelegramUser.tg_id == tg_id)
     if user_id is not None:
-        select = select.where(User.id == user_id)
+        query = query.where(User.id == user_id)
 
-    return select.get_or_none()
+    async with sessionmaker() as session:
+        async with session.begin():
+            result = await session.execute(query)
+
+            return result.scalar_one_or_none()
 
 
-def get_tg_user_with_calcs(
-    tg_id: int = None,
-    user_id: int = None,
-    since: datetime = None
-) -> TelegramUser:
+async def get_tg_user_with_calcs(tg_id: int = None,
+                                 user_id: int = None,
+                                 since: datetime = None) -> TelegramUser:
 
     if tg_id is None and user_id is None:
         return None
+
+    subquery = select(Calculation.user_id).group_by(Calculation.user_id)
 
     if since is not None:
-        calculations = Calculation.select(Calculation).where(
-            (Calculation.start_datetime >= since)
-        )
-    else:
-        calculations = Calculation.select(Calculation)
+        subquery = subquery.where(Calculation.start_datetime >= since)
 
-    select = (
-        TelegramUser.select(
-            TelegramUser,
-            User,
-            Person,
-            Organization,
-            fn.COUNT(calculations.c.id).alias('num_calc')
-        )
-        .join(User)
-        .join(Person)
-        .join(Organization, JOIN.LEFT_OUTER)
-        .join(
-            calculations,
-            JOIN.LEFT_OUTER,
-            on=(calculations.c.user_id == User.id)
-        )
-        .group_by(TelegramUser, User, Person, Organization)
-    )
+    query = select(TelegramUser).where(TelegramUser.user_id.in_(subquery))
+
     if tg_id is not None:
-        select = select.where(TelegramUser.tg_id == tg_id)
-    if user_id is not None:
-        select = select.where(User.id == user_id)
+        query = query.where(TelegramUser.tg_id == tg_id)
 
-    return select.get_or_none()
+    if user_id is not None:
+        query = query.join(User).where(User.id == user_id)
+
+    async with sessionmaker() as session:
+        async with session.begin():
+            result = await session.execute(query)
+
+            return result.scalar_one_or_none()

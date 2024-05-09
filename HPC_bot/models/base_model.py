@@ -1,32 +1,37 @@
 import logging
-from peewee import PostgresqlDatabase, Model, SqliteDatabase, MySQLDatabase
+
+from sqlalchemy.ext.asyncio import (AsyncAttrs, async_sessionmaker,
+                                    create_async_engine)
+from sqlalchemy.orm import DeclarativeBase
 
 from ..hpc import DatabaseTypes
 from ..utils import config
 
-
-parameters = {
-    'database': config.db.name,
-    'host': config.db.connection.host,
-    'port': config.db.connection.port,
-    'user': config.db.connection.user,
-    'password': config.db.connection.password.get_secret_value()
-}
-
 if config.db.db_type == DatabaseTypes.SQLITE:
     logging.warning('DB type is SQLite. Do not use it in production')
-    db = SqliteDatabase(config.db.name)
+    driver = 'sqlite+aiosqlite'
+
 elif config.db.db_type == DatabaseTypes.MYSQL:
     logging.info('DB type is MySQL')
-    db = MySQLDatabase(charset='utf8', **parameters)
+    driver = 'mysql+asyncmy'
+
 else:
+
     if config.db.db_type != DatabaseTypes.POSTGRESQL:
         logging.warning('Unrecognized db type, selecting PostgreSQL')
     else:
         logging.info('DB type is PostgreSQL')
-    db = PostgresqlDatabase(**parameters)
+
+    driver = 'postgresql+asyncpg'
+
+DB_URL = (
+    f'{driver}://'
+    f'{config.db.connection.user}:{config.db.connection.password.get_secret_value()}@'
+    f'{config.db.connection.host}/{config.db.name}')
+
+engine = create_async_engine(DB_URL, echo=True)
+sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
 
-class BaseDBModel(Model):
-    class Meta:
-        database = db
+class BaseDBModel(AsyncAttrs, DeclarativeBase):
+    pass
