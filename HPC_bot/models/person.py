@@ -20,7 +20,8 @@ class Person(BaseDBModel):
     registered: Mapped[bool] = mapped_column(default=False)
     approved: Mapped[bool] = mapped_column(default=False)
 
-    organization_id: Mapped[int] = mapped_column(ForeignKey('organization.id'))
+    organization_id: Mapped[int] = mapped_column(ForeignKey('organization.id'),
+                                                 nullable=True)
     organization: Mapped[Organization] = relationship(back_populates='persons',
                                                       lazy='joined')
 
@@ -53,7 +54,8 @@ class Person(BaseDBModel):
             organizations = await Organization.find_similar(organization)
 
             if len(organizations) == 1:
-                if self.organization.id != organizations[0].id:
+                if (self.organization is None) or (self.organization.id
+                                                   != organizations[0].id):
                     self.organization = organizations[0]
 
                 result[2] = self.organization.abbreviation

@@ -14,10 +14,11 @@ class Organization(BaseDBModel):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    name: Mapped[str] = mapped_column(String(50), unique=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
     abbreviation: Mapped[str] = mapped_column(String(15), unique=True)
 
-    parent_id: Mapped[int] = mapped_column(ForeignKey('organization.id'))
+    parent_id: Mapped[int] = mapped_column(ForeignKey('organization.id'),
+                                           nullable=True)
 
     parent: Mapped['Organization'] = relationship('Organization',
                                                   back_populates='children',

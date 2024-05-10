@@ -1,8 +1,8 @@
 """Initial tables
 
-Revision ID: 94c5c1ec7340
+Revision ID: e2558c930928
 Revises: 
-Create Date: 2024-05-10 15:04:25.969885
+Create Date: 2024-05-10 16:13:11.897743
 
 """
 from typing import Sequence, Union
@@ -14,7 +14,7 @@ import HPC_bot.models.utils
 
 
 # revision identifiers, used by Alembic.
-revision: str = '94c5c1ec7340'
+revision: str = 'e2558c930928'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -32,9 +32,9 @@ def upgrade() -> None:
     )
     op.create_table('organization',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(length=50), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('abbreviation', sa.String(length=15), nullable=False),
-    sa.Column('parent_id', sa.Integer(), nullable=False),
+    sa.Column('parent_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['parent_id'], ['organization.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('abbreviation'),
@@ -46,7 +46,7 @@ def upgrade() -> None:
     sa.Column('last_name', sa.String(length=50), nullable=False),
     sa.Column('registered', sa.Boolean(), nullable=False),
     sa.Column('approved', sa.Boolean(), nullable=False),
-    sa.Column('organization_id', sa.Integer(), nullable=False),
+    sa.Column('organization_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['organization_id'], ['organization.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
