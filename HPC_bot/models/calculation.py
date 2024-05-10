@@ -130,6 +130,7 @@ class Calculation(BaseDBModel):
                     user=user,
                     cluster=cluster_model,
                     submit_type=submit_type,
+                    start_datetime=datetime.now(timezone.utc),
                 )
                 session.add(cluster_model)
                 session.add(calculation)
