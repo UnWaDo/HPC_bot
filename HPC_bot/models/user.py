@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Sequence
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, func, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base_model import BaseDBModel, sessionmaker

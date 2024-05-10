@@ -29,7 +29,8 @@ DB_URL = (
     f'{config.db.connection.user}:{config.db.connection.password.get_secret_value()}@'
     f'{config.db.connection.host}/{config.db.name}')
 
-engine = create_async_engine(DB_URL, echo=True)
+echo = logging.getLevelName(config.log_level) == logging.DEBUG
+engine = create_async_engine(DB_URL, echo=echo)
 sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
 

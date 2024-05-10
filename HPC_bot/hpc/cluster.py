@@ -26,8 +26,7 @@ class Cluster(BaseModel):
                 if self.associations.get(association) is not None:
                     raise ValueError(
                         'Associations must be unique within the cluster, '
-                        f'but {association} occured more than once'
-                    )
+                        f'but {association} occured more than once')
                 self.associations[association] = runner
         return self
 
@@ -45,43 +44,36 @@ class Cluster(BaseModel):
             return None, []
         return runner, args
 
-    def start_runner(
-        self,
-        runner: Runner,
-        args: List[str] = None,
-        filename: str = None,
-        chdir: str = None
-    ) -> Tuple[str, str]:
+    async def start_runner(self,
+                           runner: Runner,
+                           args: List[str] = None,
+                           filename: str = None,
+                           chdir: str = None) -> Tuple[str, str]:
 
-        return self.connection.execute_by_ssh(
+        return await self.connection.execute_by_ssh(
             ('' if chdir is None else f"cd '{chdir}';") +
-            runner.create_command(args, filename)
-        )
+            runner.create_command(args, filename))
 
-    def perform_command(
-        self,
-        command: str,
-        filename: str = None,
-        chdir: str = None
-    ) -> Optional[Tuple[str, str]]:
+    async def perform_command(self,
+                              command: str,
+                              filename: str = None,
+                              chdir: str = None) -> Optional[Tuple[str, str]]:
         runner, args = self.find_suitable_runner(command)
 
         if runner is None:
             return None
 
-        return self.start_runner(
+        return await self.start_runner(
             runner,
             args,
             filename,
             chdir,
         )
 
-    def upload_file(
-        self,
-        local_path: str,
-        local_root: str = None,
-        remote_path: str = None
-    ) -> str:
+    async def upload_file(self,
+                          local_path: str,
+                          local_root: str = None,
+                          remote_path: str = None) -> str:
 
         local_path = local_path.replace('\\', '/').replace('//', '/')
 
@@ -97,31 +89,28 @@ class Cluster(BaseModel):
 
         remote_path = f'{self.upload_path}/{rel_path}'
 
-        self.connection.put_by_sftp(local_path, remote_path)
+        await self.connection.put_by_sftp(local_path, remote_path)
         return remote_path
 
-    def download_file(self, remote_path: str, local_path: str) -> str:
+    async def download_file(self, remote_path: str, local_path: str) -> str:
         remote_path = f'{self.upload_path}/{remote_path}'
 
-        self.connection.get_by_sftp(remote_path, local_path)
+        await self.connection.get_by_sftp(remote_path, local_path)
         return local_path
 
-    def download_dirs(
-            self,
-            remotes: List[str],
-            locals: List[str]
-    ) -> List[bool]:
+    async def download_dirs(self, remotes: List[str],
+                            locals: List[str]) -> List[bool]:
 
         success = [False for _ in zip(remotes, locals)]
         remotes = [f'{self.upload_path}/{r}' for r in remotes]
 
         for i, (r, l) in enumerate(zip(remotes, locals)):
             try:
-                self.connection.get_by_sftp(r, l)
+                await self.connection.get_by_sftp(r, l)
                 success[i] = True
             except Exception as e:
-                logging.error(
-                    f'Failed to download {r} from {self.label}', exc_info=e)
+                logging.error(f'Failed to download {r} from {self.label}',
+                              exc_info=e)
 
         return success
 

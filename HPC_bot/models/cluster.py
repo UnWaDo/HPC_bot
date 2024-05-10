@@ -17,7 +17,7 @@ class Cluster(BaseDBModel):
     name: Mapped[str] = mapped_column(String(50), unique=True)
     label: Mapped[str] = mapped_column(String(15), unique=True)
 
-    calculations: Mapped['Calculation'] = relationship(
+    calculations: Mapped[List['Calculation']] = relationship(
         back_populates='cluster')
 
     @staticmethod

@@ -42,11 +42,13 @@ async def notify_on_finished(bot: Bot):
 
             calculations = result.scalars().all()
 
-    users: List[TelegramUserModel] = [calc.user.tg_user[0]
+    users: List[TelegramUserModel] = [calc.user.tg_user
                                       for calc in calculations]
 
     updated = []
     for calc, user in zip(calculations, users):
+        user.user = calc.user
+
         if calc.get_status() == CalculationStatus.FAILED_TO_UPLOAD:
             text = CALCULATION_FAILED_TO_UPLOAD.format(
                 name=calc.name
@@ -58,8 +60,10 @@ async def notify_on_finished(bot: Bot):
                 name=calc.name
             )
             calc.set_status(CalculationStatus.SENDED)
+
         else:
-            link = config.storage.get_shared(calc.get_folder_name())
+            link = await config.storage.get_shared(calc.get_folder_name())
+
             text = CALCULATION_FINISHED.format(
                 name=calc.name,
                 link=link

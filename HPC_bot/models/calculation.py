@@ -90,6 +90,19 @@ class Calculation(BaseDBModel):
                                             lazy='joined')
 
     @staticmethod
+    async def count_for_user(user: User, since: datetime = None) -> int:
+        query = select(func.count()).select_from(Calculation).where(
+            Calculation.user == user)
+
+        if since is not None:
+            query = query.where(Calculation.start_datetime >= since)
+
+        async with sessionmaker() as session:
+            async with session.begin():
+
+                return await session.scalar(query)
+
+    @staticmethod
     async def new_calculation(name: str, command: str, user: User,
                               submit_type: SubmitType,
                               cluster: ClusterHPC) -> 'Calculation':
@@ -97,13 +110,16 @@ class Calculation(BaseDBModel):
         if user.blocked:
             raise BlockedException(f'User #{user.id} is blocked')
 
-        if len(user.get_calculations(
-                get_month_start())) >= user.calculation_limit:
+        user_calculations = await Calculation.count_for_user(
+            user, since=get_month_start())
+
+        if user_calculations >= user.calculation_limit:
 
             raise CalculationLimitExceeded(
                 f'User #{user.id} exceeded its calculation limit')
 
-        cluster_model = Cluster.get_or_create(cluster.label, cluster.label)
+        cluster_model = await Cluster.get_or_create(cluster.label,
+                                                    cluster.label)
 
         async with sessionmaker() as session:
             async with session.begin():
@@ -115,6 +131,7 @@ class Calculation(BaseDBModel):
                     cluster=cluster_model,
                     submit_type=submit_type,
                 )
+                session.add(cluster_model)
                 session.add(calculation)
 
                 await session.commit()

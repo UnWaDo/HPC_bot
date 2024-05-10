@@ -12,33 +12,23 @@ from ..utils import config
 from ..models import sessionmaker, Calculation, CalculationStatus
 from ..models import Cluster as ClusterModel
 
-
 SLURM_ID_RE = re.compile(r'Submitted batch job (\d+)', re.IGNORECASE)
 
-SLURM_RUNNER = Runner(
-    program='squeue',
-    allowed_args=['-o "%.15i %.5t"'],
-    default_args=['-o "%.15i %.5t"']
-)
+SLURM_RUNNER = Runner(program='squeue',
+                      allowed_args=['-o "%.15i %.5t"'],
+                      default_args=['-o "%.15i %.5t"'])
 
 
 def create_calculation_path(calculation: Calculation) -> str:
-    folder_name = os.path.join(
-        config.download_path,
-        calculation.get_folder_name()
-    )
+    folder_name = os.path.join(config.download_path,
+                               calculation.get_folder_name())
     os.makedirs(folder_name, exist_ok=True)
 
-    return os.path.join(
-        folder_name,
-        calculation.name
-    )
+    return os.path.join(folder_name, calculation.name)
 
 
-def select_cluster(
-    extension: str,
-    command: str = None
-) -> Tuple[Cluster, Runner, List[str]]:
+def select_cluster(extension: str,
+                   command: str = None) -> Tuple[Cluster, Runner, List[str]]:
 
     clusters = []  # type: List[Tuple[Cluster, Runner]]
 
@@ -67,39 +57,33 @@ def select_cluster(
 
 
 def locate_clusters(
-    calculations: List[Calculation]
- ) -> Dict[str, List[Calculation]]:
+        calculations: List[Calculation]) -> Dict[str, List[Calculation]]:
     cluster_labels = set(c.cluster.label for c in calculations)
 
-    return {label: list(
-        filter(
-            lambda x: x.cluster.label == label,
-            calculations
-        )
-    ) for label in cluster_labels}
+    return {
+        label: list(filter(lambda x: x.cluster.label == label, calculations))
+        for label in cluster_labels
+    }
 
 
 async def upload_to_cluster(
     calculation: Calculation,
     cluster: Cluster,
 ) -> str:
-    calculation_path = os.path.join(
-        config.download_path,
-        calculation.get_folder_name()
-    )
+    calculation_path = os.path.join(config.download_path,
+                                    calculation.get_folder_name())
 
     try:
-        return cluster.upload_file(
-            local_path=calculation_path,
-            local_root=config.download_path
-        )
+        return await cluster.upload_file(local_path=calculation_path,
+                                         local_root=config.download_path)
     except Exception as e:
         logging.exception(e)
         return None
 
 
 async def upload_to_clusters():
-    calculations = await Calculation.get_by_status(CalculationStatus.NOT_STARTED)
+    calculations = await Calculation.get_by_status(
+        CalculationStatus.NOT_STARTED)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -117,8 +101,7 @@ async def upload_to_clusters():
             if path is None:
                 logging.warning(
                     f'Failed to upload calculation {calculation.name}'
-                    f' to cluster {cluster.label}'
-                )
+                    f' to cluster {cluster.label}')
                 continue
             else:
                 calculation.set_status(CalculationStatus.UPLOADED)
@@ -133,19 +116,16 @@ async def upload_to_clusters():
                 await session.commit()
 
 
-
-def start_calculation(
+async def start_calculation(
     calculation: Calculation,
     cluster: Cluster,
 ) -> bool:
     basename = calculation.name
     directory = f'{cluster.upload_path}/{calculation.get_folder_name()}'
 
-    result = cluster.perform_command(
-        command=calculation.command,
-        filename=basename,
-        chdir=directory
-    )
+    result = await cluster.perform_command(command=calculation.command,
+                                           filename=basename,
+                                           chdir=directory)
     if result is None:
         logging.warning(f'Illegal command {calculation.command}')
         return False
@@ -154,11 +134,10 @@ def start_calculation(
 
     matched = SLURM_ID_RE.search(stdout)
     if matched is None:
-        logging.warning(
-            'No slurm id returned '
-            f'while setting up calculation #{calculation.id} '
-            f'({directory}/{basename}). '
-            f'Output is {stdout}\nStderr is {stderr}')
+        logging.warning('No slurm id returned '
+                        f'while setting up calculation #{calculation.id} '
+                        f'({directory}/{basename}). '
+                        f'Output is {stdout}\nStderr is {stderr}')
         return False
 
     slurm_id = int(matched.group(1))
@@ -181,13 +160,14 @@ async def start_calculations():
             continue
 
         for calculation in calculations:
-            started = start_calculation(calculation, cluster)
+            started = await start_calculation(calculation, cluster)
 
             if started:
                 calculation.set_status(CalculationStatus.PENDING)
-                updated.append(started)
+                updated.append(calculation)
             else:
-                logging.warning(f'Failed to start calculation {calculation.name}')
+                logging.warning(
+                    f'Failed to start calculation {calculation.name}')
 
     if updated:
         async with sessionmaker() as session:
@@ -206,7 +186,8 @@ async def update_db():
         if any(c.label == cluster.label for c in clusters):
             continue
 
-        new_clusters.append(ClusterModel(name=cluster.label, label=cluster.label))
+        new_clusters.append(
+            ClusterModel(name=cluster.label, label=cluster.label))
 
     async with sessionmaker() as session:
         async with session.begin():
@@ -228,12 +209,13 @@ async def check_updates():
         if cluster_calc.get(cluster.label) is None:
             continue
 
-        stdout, stderr = cluster.start_runner(SLURM_RUNNER)
+        stdout, stderr = await cluster.start_runner(SLURM_RUNNER)
         logging.debug(f'Slurm output is {stdout}\n, stderr is {stderr}')
 
-        slurm_data = [line.split() for line in filter(
-            lambda x: x.strip(), stdout.split('\n')[1:]
-        )]
+        slurm_data = [
+            line.split() for line in filter(lambda x: x.strip(),
+                                            stdout.split('\n')[1:])
+        ]
 
         slurm_status = [
             CalculationStatus.from_slurm(status) for _, status in slurm_data
@@ -267,7 +249,8 @@ async def check_updates():
 
 
 async def load_finished():
-    calculations = await Calculation.get_by_status(CalculationStatus.FINISHED_OK)
+    calculations = await Calculation.get_by_status(
+        CalculationStatus.FINISHED_OK)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -279,10 +262,8 @@ async def load_finished():
             continue
 
         folders = [c.get_folder_name() for c in calcs]
-        success = cluster.download_dirs(
-            folders,
-            [config.download_path for f in folders]
-        )
+        success = await cluster.download_dirs(
+            folders, [config.download_path for f in folders])
         for calc, succ in zip(calcs, success):
             if not succ:
                 continue
@@ -313,13 +294,9 @@ async def send_to_cloud():
         folders = [c.get_folder_name() for c in calcs]
         for fold, calc in zip(folders, calcs):
             try:
-                config.storage.put(
-                    local_path=os.path.join(
-                        config.download_path,
-                        fold
-                    ),
-                    remote_path=fold
-                )
+                await config.storage.put(local_path=os.path.join(
+                    config.download_path, fold),
+                                         remote_path=fold)
             except Exception as e:
                 logging.error('Failed to upload to storage', exc_info=e)
                 continue

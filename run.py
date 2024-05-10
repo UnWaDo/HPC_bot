@@ -30,18 +30,14 @@ async def cluster_updates(bot: Bot):
             break
 
         except Exception as e:
-            logging.exception(
-                'Error while handling updates',
-                exc_info=e,
-                stack_info=True
-            )
+            logging.exception('Error while handling updates',
+                              exc_info=e,
+                              stack_info=True)
         if isinstance(config.fetch_time, int):
             await asyncio.sleep(config.fetch_time)
             continue
-        await asyncio.sleep(randint(
-            config.fetch_time[0],
-            config.fetch_time[1]
-        ))
+        await asyncio.sleep(randint(config.fetch_time[0],
+                                    config.fetch_time[1]))
 
 
 async def main() -> None:
@@ -51,10 +47,8 @@ async def main() -> None:
     dp.include_router(message_router)
     dp.include_router(chat_router)
 
-    dp.error.register(
-        handle_chat_migration,
-        ExceptionTypeFilter([TelegramMigrateToChat])
-    )
+    dp.error.register(handle_chat_migration,
+                      ExceptionTypeFilter([TelegramMigrateToChat]))
 
     bot = Bot(config.bot.token, parse_mode=ParseMode.HTML)
 
@@ -63,11 +57,12 @@ async def main() -> None:
 
     updates = asyncio.create_task(cluster_updates(bot))
 
-    await dp.start_polling(bot, allowed_updates=[
-        'message',
-        'chat_member',
-        'my_chat_member',
-    ])
+    await dp.start_polling(bot,
+                           allowed_updates=[
+                               'message',
+                               'chat_member',
+                               'my_chat_member',
+                           ])
     updates.cancel()
     await updates
 
