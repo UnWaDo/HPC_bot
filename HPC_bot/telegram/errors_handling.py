@@ -1,7 +1,6 @@
 import logging
 
 from aiogram.types import ErrorEvent
-from aiogram.exceptions import TelegramMigrateToChat
 
 from ..utils import config
 
@@ -21,7 +20,6 @@ async def handle_chat_migration(event: ErrorEvent):
             config.bot.log_chat_id,
             f'Чат {event.update.message.chat.title} сменил идентификатор '
             f'с {old_id} на {new_id}. '
-            'Не забудьте обновить конфигурационный файл, если это необходимо'
-        )
+            'Не забудьте обновить конфигурационный файл, если это необходимо')
     text = event.update.message.text
     await event.bot.send_message(new_id, text)

@@ -5,11 +5,8 @@ from aiogram.types import User
 from ..models import TelegramUser as TgUserModel
 from ..utils import config
 
-
-USER_LINK = (
-    '<a href="tg://user?id={tg_id}">{name}</a> '
-    '({identifier})'
-)
+USER_LINK = ('<a href="tg://user?id={tg_id}">{name}</a> '
+             '({identifier})')
 
 
 async def log_message(bot: Bot, text: str, file: str = None):
@@ -17,11 +14,9 @@ async def log_message(bot: Bot, text: str, file: str = None):
         return
 
     if file is not None:
-        await bot.send_document(
-            config.bot.log_chat_id,
-            document=file,
-            caption=text
-        )
+        await bot.send_document(config.bot.log_chat_id,
+                                document=file,
+                                caption=text)
     else:
         await bot.send_message(config.bot.log_chat_id, text)
 
@@ -55,7 +50,8 @@ def create_user_link(user: User = None, model: TgUserModel = None) -> str:
     return USER_LINK.format(tg_id=tg_id, name=name, identifier=identifier)
 
 
-def get_str_from_re(regex: Pattern, string: str,
+def get_str_from_re(regex: Pattern,
+                    string: str,
                     group: int = 0) -> Optional[str]:
     matched = regex.search(string)
     if matched is None:

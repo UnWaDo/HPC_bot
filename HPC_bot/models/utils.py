@@ -8,7 +8,7 @@ class IntEnum(TypeDecorator):
 
     _enumtype: Enum
 
-    def __init__(self, enumtype, *args, **kwargs):
+    def __init__(self, enumtype=None, *args, **kwargs):
         super(IntEnum, self).__init__(*args, **kwargs)
         self._enumtype = enumtype
 

@@ -7,7 +7,6 @@ from pydantic import BaseModel, model_validator
 from ..hpc import Cluster, Database, RemoteStorage
 from ..telegram import Bot
 
-
 CONFIG_PATH = 'config.json'
 
 
@@ -46,10 +45,8 @@ except json.decoder.JSONDecodeError as e:
     raise ConfigParseError('Invalid config file %s' % CONFIG_PATH)
 
 finally:
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        level=config.log_level,
-        filename=config.log_file
-    )
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+                        level=config.log_level,
+                        filename=config.log_file)
     if is_default:
         logging.warning('No %s file found, using default config' % CONFIG_PATH)
