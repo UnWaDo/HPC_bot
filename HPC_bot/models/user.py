@@ -29,7 +29,8 @@ class User(BaseDBModel):
     person_id: Mapped[int] = mapped_column(ForeignKey('person.id'))
     person: Mapped[Person] = relationship(back_populates='user', lazy='joined')
 
-    tg_user: Mapped['TelegramUser'] = relationship(back_populates='user')
+    tg_user: Mapped['TelegramUser'] = relationship(back_populates='user',
+                                                   lazy='joined')
     calculations: Mapped[List['Calculation']] = relationship(
         back_populates='user')
 

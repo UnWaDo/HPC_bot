@@ -434,13 +434,13 @@ async def block_user(message: Message, command: CommandObject):
         await message.answer(BLOCK_HELP)
         return
 
-    user = UserModel.block(idx)
+    user = await UserModel.block(idx)
     if user is None:
         await message.answer(BLOCK_FAILED)
         return
 
     await message.answer(BLOCK_OK)
-    await message.bot.send_message(user.tg_user[0].tg_id, BLOCK_NOTIFY)
+    await message.bot.send_message(user.tg_user.tg_id, BLOCK_NOTIFY)
     await log_message(
         message.bot,
         BLOCK_LOG.format(
@@ -467,7 +467,7 @@ async def unblock_user(message: Message, command: CommandObject):
         return
 
     await message.answer(UNBLOCK_OK)
-    await message.bot.send_message(user.tg_user[0].tg_id, UNBLOCK_NOTIFY)
+    await message.bot.send_message(user.tg_user.tg_id, UNBLOCK_NOTIFY)
     await log_message(
         message.bot,
         UNBLOCK_LOG.format(
@@ -594,15 +594,10 @@ async def alter_limit(message: Message, command: CommandObject):
         await message.answer(STATUS_NOT_FOUND)
         return
 
-    org = user.user.person.organization
-    if org is None:
-        org_name = '(неизвестно)'
-    else:
-        org_name = org.name
-
     try:
         user.user.calculation_limit = limit
-        user.user.save()
+        await user.user.save()
+
     except Exception:
         await message.answer(COMMAND_ERROR)
         return

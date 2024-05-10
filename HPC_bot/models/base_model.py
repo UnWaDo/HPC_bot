@@ -34,4 +34,11 @@ sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
 
 class BaseDBModel(AsyncAttrs, DeclarativeBase):
-    pass
+
+    async def save(self):
+        async with sessionmaker() as session:
+            async with session.begin():
+
+                session.add(self)
+
+                await session.commit()
