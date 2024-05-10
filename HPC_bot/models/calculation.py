@@ -1,6 +1,6 @@
 import enum
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from sqlalchemy import DateTime, ForeignKey, String, func, select
@@ -204,7 +204,7 @@ class Calculation(BaseDBModel):
         name, _ = os.path.splitext(self.name)
 
         data = [
-            int(datetime.timestamp(self.start_datetime)),
+            int(self.start_datetime.replace(tzinfo=timezone.utc).timestamp()),
             self.user_id,
             name,
         ]
