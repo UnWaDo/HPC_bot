@@ -1,0 +1,42 @@
+extensions_whitelist:
+  - .out
+  - .log
+  - .err
+  - .gjf
+  - .inp
+  - .err
+  - .fchk
+  - .xyz
+  - .cpcm
+  - .engrad
+  - .opt
+  - .hess
+  - .gbw
+  - .molden
+  - ".47"
+  - ".31"
+  - ".32"
+  - ".33"
+  - ".34"
+  - ".35"
+  - ".36"
+  - ".37"
+  - ".38"
+  - ".39"
+  - ".40"
+  - ".41"
+  - .zip
+  - .nto
+  - .tpr
+  - .edr
+  - .cpt
+  - .xtc
+  - .gro
+
+files_whitelist:
+  - hessian
+  - vibspectrum
+
+filtered_extensions:
+  - "\\.tmp"
+  - "\\.tmp\\..*"

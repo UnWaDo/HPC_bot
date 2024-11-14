@@ -1,23 +1,26 @@
 import logging
 import os
 import re
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Pattern
 from xml.etree import ElementTree
 
 import aiodav
 import aiohttp
 import asyncssh
+import asyncssh.misc
 from pydantic import BaseModel, Field, SecretStr
 
-# TODO: move this to config
-EXTENSIONS_WHITELIST = [
-    ".out", ".log", ".gjf", ".inp", ".err", ".fchk", ".xyz", ".cpcm",
-    ".engrad", ".opt", ".hess", ".gbw", ".molden"
-]
-FILES_WHITELIST = ['hessian', 'vibspectrum']
+import yaml
 
-FILTERED_EXT = [re.compile(s) for s in [r'\.tmp', r'\.tmp\..*']]
+class ConnectionConfig(BaseModel):
+    extensions_whitelist: List[str] = ['.out', '.log', '.err']
+    files_whitelist: List[str] = []
+    filtered_extensions: List[Pattern] = [r'\.tmp', r'\.tmp\..*']
 
+with open('connection_config.yml') as config_file:
+    connection_config = yaml.safe_load(config_file)
+
+config = ConnectionConfig.model_validate(connection_config)
 
 class Connection(BaseModel):
 
@@ -97,11 +100,11 @@ class Connection(BaseModel):
         if self.ssh_client is None:
             return False
 
-        # try:
-        #     self.ssh_client.run('pwd')
+        try:
+            await self.ssh_client.run('pwd')
 
-        # except asyncssh.ProcessError:
-        #     return False
+        except (asyncssh.ProcessError, asyncssh.misc.asyncssh.ChannelOpenError) as e:
+            return False
 
         return True
 
@@ -114,6 +117,11 @@ class Connection(BaseModel):
 
     async def get_sftp_client(self) -> asyncssh.SFTPClient:
         if self.sftp_client is None or not (await self.is_ssh_active()):
+            return await self.open_sftp()
+
+        try:
+            await self.sftp_client.stat('.')
+        except asyncssh.SFTPError:
             return await self.open_sftp()
 
         return self.sftp_client
@@ -166,8 +174,12 @@ class Connection(BaseModel):
                 continue
 
             basename, ext = os.path.splitext(os.path.basename(file))
-            if (basename not in FILES_WHITELIST
-                    and ext not in EXTENSIONS_WHITELIST):
+            if (basename not in config.files_whitelist
+                    and ext not in config.extensions_whitelist):
+                continue
+
+            if any(re_i.search(file) is not None
+                    for re_i in config.filtered_extensions):
                 continue
 
             await sftp.get(remotepaths=path,

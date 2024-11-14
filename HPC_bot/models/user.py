@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from .telegram_user import TelegramUser
 
 NEWLY_REGISTERED_LIMIT = 5
-APPROVED_BASE_LIMIT = 25
+APPROVED_BASE_LIMIT = 50
 
 
 class User(BaseDBModel):
@@ -30,7 +30,7 @@ class User(BaseDBModel):
     person: Mapped[Person] = relationship(back_populates='user', lazy='joined')
 
     tg_user: Mapped['TelegramUser'] = relationship(back_populates='user',
-                                                   lazy='joined')
+                                                   lazy='joined', join_depth=2)
     calculations: Mapped[List['Calculation']] = relationship(
         back_populates='user')
 

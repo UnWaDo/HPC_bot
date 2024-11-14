@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Pattern
 
 from pydantic import BaseModel, model_validator
 
@@ -18,8 +18,7 @@ class Config(BaseModel):
     download_path: str = 'downloads/'
     storage: RemoteStorage = None
     fetch_time: Union[int, Tuple[int, int]] = (120, 240)
-    max_file_size: int = 1024 * 1024
-    extensions_whitelist: List[str] = ['.out', '.log', '.err']
+    max_file_size: int = 1024 * 1024 * 15
 
     log_level: Union[int, str] = 'DEBUG'
     log_file: str = None

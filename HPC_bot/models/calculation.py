@@ -204,8 +204,14 @@ class Calculation(BaseDBModel):
     def get_folder_name(self) -> str:
         name, _ = os.path.splitext(self.name)
 
+
+        if self.start_datetime.replace(tzinfo=timezone.utc) < datetime(2024, 5, 10, tzinfo=timezone.utc):
+            stamp = self.start_datetime.timestamp()
+        else:
+            stamp = self.start_datetime.replace(tzinfo=timezone.utc).timestamp()
+
         data = [
-            int(self.start_datetime.replace(tzinfo=timezone.utc).timestamp()),
+            int(stamp),
             self.user_id,
             name,
         ]

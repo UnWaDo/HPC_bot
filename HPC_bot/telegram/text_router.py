@@ -413,11 +413,11 @@ async def approve_data(message: Message, command: CommandObject):
 
     await message.answer(APPROVE_OK)
     await message.bot.send_message(
-        user.tg_user[0].tg_id,
+        user.tg_user.tg_id,
         APPROVE_NOTIFY.format(calc_limit=user.calculation_limit))
     await log_message(
         message.bot,
-        APPROVE_LOG.format(user=create_user_link(model=user.tg_user[0]),
+        APPROVE_LOG.format(user=create_user_link(model=user.tg_user),
                            admin=create_user_link(message.from_user),
                            calc_limit=user.calculation_limit))
 
@@ -444,7 +444,7 @@ async def block_user(message: Message, command: CommandObject):
     await log_message(
         message.bot,
         BLOCK_LOG.format(
-            user=create_user_link(model=user.tg_user[0]),
+            user=create_user_link(model=user.tg_user),
             admin=create_user_link(message.from_user),
         ))
 
@@ -471,7 +471,7 @@ async def unblock_user(message: Message, command: CommandObject):
     await log_message(
         message.bot,
         UNBLOCK_LOG.format(
-            user=create_user_link(model=user.tg_user[0]),
+            user=create_user_link(model=user.tg_user),
             admin=create_user_link(message.from_user),
         ))
 
