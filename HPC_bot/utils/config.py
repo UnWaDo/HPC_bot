@@ -4,7 +4,7 @@ from typing import List, Tuple, Union, Pattern
 
 from pydantic import BaseModel, model_validator
 
-from ..hpc import Cluster, Database, RemoteStorage
+from ..hpc import Cluster, RemoteStorage
 from ..telegram import Bot
 
 CONFIG_PATH = 'config.json'
@@ -23,7 +23,6 @@ class Config(BaseModel):
     log_level: Union[int, str] = 'DEBUG'
     log_file: str = None
 
-    db: Database = Database()
     bot: Bot = Bot()
 
     clusters: List[Cluster] = []

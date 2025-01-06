@@ -3,12 +3,10 @@ import os
 from datetime import datetime, timezone
 from typing import List
 
-from sqlalchemy import DateTime, ForeignKey, String, func, select
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..hpc import Cluster as ClusterHPC
-from ..utils import get_month_start
-from .base_model import BaseDBModel, sessionmaker
+from .base_model import BaseDBModel
 from .cluster import Cluster
 from .user import User
 from .utils import IntEnum
@@ -28,10 +26,10 @@ class CalculationStatus(enum.Enum):
     SENDED = 1000
 
     @staticmethod
-    def from_slurm(status: str) -> 'CalculationStatus':
-        if status == 'PD':
+    def from_slurm(status: str) -> "CalculationStatus":
+        if status == "PD":
             return CalculationStatus.PENDING
-        if status == 'R':
+        if status == "R":
             return CalculationStatus.RUNNING
 
         return CalculationStatus.FINISHED_OK
@@ -62,135 +60,36 @@ class BlockedException(Exception):
 
 
 class Calculation(BaseDBModel):
-    __tablename__ = 'calculation'
+    __tablename__ = "calculation"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
     name: Mapped[str] = mapped_column(String(50))
     command: Mapped[str] = mapped_column(String(255))
 
-    start_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True),
-                                                     default=func.now())
-    end_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True),
-                                                   nullable=True)
+    start_datetime: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now()
+    )
+    end_datetime: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     slurm_id: Mapped[int] = mapped_column(nullable=True)
 
     status: Mapped[CalculationStatus] = mapped_column(
-        IntEnum(CalculationStatus), default=CalculationStatus.NOT_STARTED)
+        IntEnum(CalculationStatus), default=CalculationStatus.NOT_STARTED
+    )
     submit_type: Mapped[SubmitType] = mapped_column(
-        IntEnum(SubmitType), default=SubmitType.TELEGRAM)
+        IntEnum(SubmitType), default=SubmitType.TELEGRAM
+    )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey('hpc_user.id'))
-    user: Mapped[User] = relationship(back_populates='calculations',
-                                      lazy='joined')
+    user_id: Mapped[int] = mapped_column(ForeignKey("hpc_user.id"))
+    user: Mapped[User] = relationship(back_populates="calculations", lazy="joined")
 
-    cluster_id: Mapped[int] = mapped_column(ForeignKey('cluster.id'))
-    cluster: Mapped[Cluster] = relationship(back_populates='calculations',
-                                            lazy='joined')
-
-    @staticmethod
-    async def count_for_user(user: User, since: datetime = None) -> int:
-        query = select(func.count()).select_from(Calculation).where(
-            Calculation.user == user)
-
-        if since is not None:
-            query = query.where(Calculation.start_datetime >= since)
-
-        async with sessionmaker() as session:
-            async with session.begin():
-
-                return await session.scalar(query)
-
-    @staticmethod
-    async def new_calculation(name: str, command: str, user: User,
-                              submit_type: SubmitType,
-                              cluster: ClusterHPC) -> 'Calculation':
-
-        if user.blocked:
-            raise BlockedException(f'User #{user.id} is blocked')
-
-        user_calculations = await Calculation.count_for_user(
-            user, since=get_month_start())
-
-        if user_calculations >= user.calculation_limit:
-
-            raise CalculationLimitExceeded(
-                f'User #{user.id} exceeded its calculation limit')
-
-        cluster_model = await Cluster.get_or_create(cluster.label,
-                                                    cluster.label)
-
-        async with sessionmaker() as session:
-            async with session.begin():
-
-                calculation = Calculation(
-                    name=name,
-                    command=command,
-                    user=user,
-                    cluster=cluster_model,
-                    submit_type=submit_type,
-                    start_datetime=datetime.now(timezone.utc),
-                )
-                session.add(cluster_model)
-                session.add(calculation)
-
-                await session.commit()
-
-                return calculation
-
-    @staticmethod
-    async def get_all() -> List['Calculation']:
-        async with sessionmaker() as session:
-            async with session.begin():
-
-                query = select(Calculation).order_by(
-                    Calculation.start_datetime)
-
-                result = await session.execute(query)
-
-                return result.scalars().all()
-
-    @staticmethod
-    async def get_not_started() -> List['Calculation']:
-        async with sessionmaker() as session:
-            async with session.begin():
-
-                query = select(Calculation).where(
-                    Calculation.status ==
-                    CalculationStatus.NOT_STARTED).order_by(
-                        Calculation.start_datetime)
-
-                result = await session.execute(query)
-
-                return result.scalars().all()
-
-    @staticmethod
-    async def get_unfinished() -> List['Calculation']:
-        async with sessionmaker() as session:
-            async with session.begin():
-
-                query = select(Calculation).where(
-                    Calculation.status <
-                    CalculationStatus.FINISHED_OK).order_by(
-                        Calculation.start_datetime)
-
-                result = await session.execute(query)
-
-                return result.scalars().all()
-
-    @staticmethod
-    async def get_by_status(status: CalculationStatus) -> List['Calculation']:
-        async with sessionmaker() as session:
-            async with session.begin():
-
-                query = select(Calculation).where(
-                    Calculation.status == status).order_by(
-                        Calculation.start_datetime)
-
-                result = await session.execute(query)
-
-                return result.scalars().all()
+    cluster_id: Mapped[int] = mapped_column(ForeignKey("cluster.id"))
+    cluster: Mapped[Cluster] = relationship(
+        back_populates="calculations", lazy="joined"
+    )
 
     def get_status(self) -> CalculationStatus:
         return self.status
@@ -204,8 +103,9 @@ class Calculation(BaseDBModel):
     def get_folder_name(self) -> str:
         name, _ = os.path.splitext(self.name)
 
-
-        if self.start_datetime.replace(tzinfo=timezone.utc) < datetime(2024, 5, 10, tzinfo=timezone.utc):
+        if self.start_datetime.replace(tzinfo=timezone.utc) < datetime(
+            2024, 5, 10, tzinfo=timezone.utc
+        ):
             stamp = self.start_datetime.timestamp()
         else:
             stamp = self.start_datetime.replace(tzinfo=timezone.utc).timestamp()
@@ -216,4 +116,4 @@ class Calculation(BaseDBModel):
             name,
         ]
 
-        return '_'.join(map(str, data))
+        return "_".join(map(str, data))

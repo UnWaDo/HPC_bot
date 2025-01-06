@@ -1,13 +1,13 @@
 from sqlalchemy import BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
-from .base_model import BaseDBModel, sessionmaker
+from .base_model import BaseDBModel
+from HPC_bot.database.database import sessionmaker
 from .user import User
 
 
 class UnauthorizedAccessError(Exception):
     pass
-
 
 class TelegramUser(BaseDBModel):
     __tablename__ = 'tg_user'
@@ -38,16 +38,3 @@ class TelegramUser(BaseDBModel):
                 f'User with id {tg_id} is unauthorized')
 
         return user
-
-    @staticmethod
-    async def register(tg_id: int, first_name: str, last_name: str):
-        async with sessionmaker() as session:
-            async with session.begin():
-                user = await User.register(first_name, last_name)
-
-                tg_user = TelegramUser(tg_id=tg_id, user=user)
-                session.add(tg_user)
-
-                await session.commit()
-
-        return tg_user
