@@ -40,6 +40,7 @@ def users():
             "first_name": "Ivan",
             "last_name": "Ivanov",
             "id": 1,
+            "tg_id": 123123,
             "approved": False,
             "blocked": False,
         },
@@ -47,6 +48,7 @@ def users():
             "first_name": "Maria",
             "last_name": "Pavlova",
             "id": 2,
+            "tg_id": 12877,
             "approved": True,
             "blocked": False,
         },
@@ -54,6 +56,7 @@ def users():
             "first_name": "Ekaterina",
             "last_name": "Sidorova",
             "id": 3,
+            "tg_id": 999123,
             "approved": False,
             "blocked": True,
         },
@@ -63,7 +66,9 @@ def users():
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def update_values(session, users):
     for user in users:
-        await UserDAO.register(session, user["first_name"], user["last_name"])
+        await TelegramUserDAO.register(
+            session, user["tg_id"], user["first_name"], user["last_name"]
+        )
 
         if user["approved"]:
             await UserDAO.approve(session, user["id"])
@@ -264,3 +269,35 @@ async def test_telegram_registration(session, tg_id, first_name, last_name):
     assert new.user_id is not None
     assert new.user.person.first_name == first_name
     assert new.user.person.last_name == last_name
+
+
+@pytest.mark.asyncio
+async def test_telegram_get_with_calcs(
+    session, users, approved_user, not_approved_user, cluster_hpc
+):
+    tg_users = await TelegramUserDAO.get_all_with_calcs(session)
+    assert len(tg_users) == len(users)
+
+    for user in tg_users:
+        assert user.num_calc == 0
+
+    await CalculationDAO.new_calculation(
+        session,
+        "calc 1",
+        "run_calc",
+        not_approved_user,
+        SubmitType.TELEGRAM,
+        cluster_hpc,
+    )
+    await CalculationDAO.new_calculation(
+        session, "calc 2", "run_calc", approved_user, SubmitType.TELEGRAM, cluster_hpc
+    )
+
+    tg_users = await TelegramUserDAO.get_all_with_calcs(session)
+    assert len(users) == len(tg_users)
+
+    for user in tg_users:
+        if not user.user.blocked:
+            assert user.num_calc == 1
+
+    assert tg_users[-1].num_calc == 0
