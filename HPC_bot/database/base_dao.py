@@ -49,6 +49,8 @@ class BaseDAO(Generic[T]):
     @classmethod
     async def update(cls, session: AsyncSession, obj_id: int, **values):
         obj = await cls.get_by_id(session, obj_id)
+        if obj is None:
+            return None
 
         for k, v in values.items():
             setattr(obj, k, v)

@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Optional
+from typing import Callable, Optional, TypeVar
 
 import yaml
 from pydantic import BaseModel, SecretStr, model_validator
@@ -84,23 +84,27 @@ class DatabaseConfig(BaseModel):
         return logging.getLogger().level <= logging.DEBUG
 
 
+db_config = None
 try:
     db_config = DatabaseConfig.load_config(DB_CONFIG_PATH)
 
 except FileNotFoundError:
-    pass
+    logging.warning(f"No db config file {DB_CONFIG_PATH} found. Using default config")
 
 except yaml.YAMLError:
     raise DBConfigError(f"Invalid config file {DB_CONFIG_PATH}")
 
 finally:
-    db_config = DatabaseConfig()
+    if db_config is None:
+        db_config = DatabaseConfig()
 
 engine = create_async_engine(db_config.db_url, echo=db_config.echo)
 sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
+RT = TypeVar("RT")  # return type
 
-def db_connection(method):
+
+def db_connection(method: Callable[..., RT]) -> Callable[..., RT]:
 
     async def wrapper(*args, **kwargs):
         async with sessionmaker() as session:
@@ -111,4 +115,4 @@ def db_connection(method):
                 await session.rollback()
                 raise e
 
-        return wrapper
+    return wrapper

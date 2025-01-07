@@ -6,10 +6,12 @@ import re
 from random import randint
 from typing import List, Tuple, Dict
 
+from HPC_bot.hpc.db_interactions import get_calculations_by_status, get_unfinished_calculations, update_calculations, update_clusters
+
 from .cluster import Cluster
 from .runner import Runner
 from ..utils import config
-from ..models import sessionmaker, Calculation, CalculationStatus
+from ..models import Calculation, CalculationStatus
 from ..models import Cluster as ClusterModel
 
 SLURM_ID_RE = re.compile(r'Submitted batch job (\d+)', re.IGNORECASE)
@@ -30,7 +32,7 @@ def create_calculation_path(calculation: Calculation) -> str:
 def select_cluster(extension: str,
                    command: str = None) -> Tuple[Cluster, Runner, List[str]]:
 
-    clusters = []  # type: List[Tuple[Cluster, Runner]]
+    clusters: List[Tuple[Cluster, Runner]] = []
 
     if command is None:
         for cluster in config.clusters:
@@ -82,8 +84,7 @@ async def upload_to_cluster(
 
 
 async def upload_to_clusters():
-    calculations = await Calculation.get_by_status(
-        CalculationStatus.NOT_STARTED)
+    calculations = await get_calculations_by_status(CalculationStatus.NOT_STARTED)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -108,12 +109,7 @@ async def upload_to_clusters():
             updated.append(calculation)
 
     if updated:
-        async with sessionmaker() as session:
-            async with session.begin():
-                for update in updated:
-                    session.add(update)
-
-                await session.commit()
+        await update_calculations(updated)
 
 
 async def start_calculation(
@@ -147,7 +143,7 @@ async def start_calculation(
 
 
 async def start_calculations():
-    calculations = await Calculation.get_by_status(CalculationStatus.UPLOADED)
+    calculations = await get_calculations_by_status(CalculationStatus.UPLOADED)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -170,35 +166,15 @@ async def start_calculations():
                     f'Failed to start calculation {calculation.name}')
 
     if updated:
-        async with sessionmaker() as session:
-            async with session.begin():
-                for update in updated:
-                    session.add(update)
-
-                await session.commit()
+        await update_calculations(updated)
 
 
 async def update_db():
-    clusters = await ClusterModel.get_all()
-
-    new_clusters = []
-    for cluster in config.clusters:
-        if any(c.label == cluster.label for c in clusters):
-            continue
-
-        new_clusters.append(
-            ClusterModel(name=cluster.label, label=cluster.label))
-
-    async with sessionmaker() as session:
-        async with session.begin():
-            for cluster in new_clusters:
-                session.add(cluster)
-
-            await session.commit()
+    await update_clusters(config.clusters)
 
 
 async def check_updates():
-    calculations = await Calculation.get_unfinished()
+    calculations = await get_unfinished_calculations()
 
     cluster_calc = locate_clusters(calculations)
 
@@ -240,17 +216,11 @@ async def check_updates():
             updated_status.append(calc)
 
     if updated_time or updated_status:
-        async with sessionmaker() as session:
-            async with session.begin():
-                for update in updated_time + updated_status:
-                    session.add(update)
-
-                await session.commit()
+        await update_calculations(updated_time + updated_status)
 
 
 async def load_finished():
-    calculations = await Calculation.get_by_status(
-        CalculationStatus.FINISHED_OK)
+    calculations = await get_calculations_by_status(CalculationStatus.FINISHED_OK)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -271,16 +241,11 @@ async def load_finished():
             updated.append(calc)
 
     if updated:
-        async with sessionmaker() as session:
-            async with session.begin():
-                for update in updated:
-                    session.add(update)
-
-                await session.commit()
+        await update_calculations(updated)
 
 
 async def send_to_cloud():
-    calculations = await Calculation.get_by_status(CalculationStatus.LOADED)
+    calculations = await get_calculations_by_status(CalculationStatus.LOADED)
 
     cluster_calc = locate_clusters(calculations)
 
@@ -304,9 +269,4 @@ async def send_to_cloud():
             updated.append(calc)
 
     if updated:
-        async with sessionmaker() as session:
-            async with session.begin():
-                for update in updated:
-                    session.add(update)
-
-                await session.commit()
+        await update_calculations(updated)

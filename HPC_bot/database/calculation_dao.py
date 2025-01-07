@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from HPC_bot.database.base_dao import BaseDAO
@@ -78,6 +78,21 @@ class CalculationDAO(BaseDAO[Calculation]):
 
         result = await session.scalars(query)
 
+        return result.all()
+
+    @classmethod
+    async def get_finished(cls, session: AsyncSession):
+        query = (
+            select(cls.model)
+            .where(cls.model.submit_type == SubmitType.TELEGRAM)
+            .where(
+                or_(
+                    cls.model.status == CalculationStatus.CLOUDED,
+                    cls.model.status == CalculationStatus.FAILED_TO_UPLOAD,
+                )
+            )
+        )
+        result = await session.scalars(query)
         return result.all()
 
     @classmethod

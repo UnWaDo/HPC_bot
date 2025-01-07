@@ -2,11 +2,12 @@ import logging
 from typing import List
 
 from aiogram import Bot
-from sqlalchemy import or_, select
 
-from ..models import Calculation, CalculationStatus, SubmitType
+from HPC_bot.telegram.db_interactions import (get_finished_calculations,
+                                              update_calculations)
+
+from ..models import CalculationStatus
 from ..models import TelegramUser as TelegramUserModel
-from ..models import sessionmaker
 from ..utils import config
 from .utils import create_user_link, log_message
 
@@ -28,16 +29,7 @@ CALCULATION_FINISHED_LOG = (
 
 async def notify_on_finished(bot: Bot):
 
-    query = select(Calculation).where(
-        Calculation.submit_type == SubmitType.TELEGRAM).where(
-            or_(Calculation.status == CalculationStatus.CLOUDED,
-                Calculation.status == CalculationStatus.FAILED_TO_UPLOAD))
-
-    async with sessionmaker() as session:
-        async with session.begin():
-            result = await session.execute(query)
-
-            calculations = result.scalars().all()
+    calculations = await get_finished_calculations()
 
     users: List[TelegramUserModel] = [
         calc.user.tg_user for calc in calculations
@@ -72,9 +64,4 @@ async def notify_on_finished(bot: Bot):
                 exc_info=e)
 
     if updated:
-        async with sessionmaker() as session:
-            async with session.begin():
-                for update in updated:
-                    session.add(update)
-
-                await session.commit()
+        await update_calculations(updated)

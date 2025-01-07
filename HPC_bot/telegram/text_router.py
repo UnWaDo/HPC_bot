@@ -6,12 +6,14 @@ from aiogram.types import Message, User as AioUser, Document
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram import F
 
+from HPC_bot.database.calculation_dao import CalculationDAO
+from HPC_bot.database.telegram_user_dao import TelegramUserDAO
+from HPC_bot.telegram.db_interactions import alter_limit, approve_user, authorize, block_user, get_all_with_calcs, get_user_with_calcs, new_calculation, search_users, unblock_user, update_person
+
 from .utils import log_message, create_user_link, get_str_from_re
 from ..utils import config, get_month_start
 from ..models import TelegramUser, UnauthorizedAccessError, Person
 from ..models import User as UserModel
-from ..models.manager import (get_all_with_calcs, get_tg_user_with_calcs,
-                              get_tg_user, search_users)
 from ..hpc.manager import create_calculation_path, start_calculation
 from ..hpc.manager import select_cluster
 from ..models import SubmitType, Calculation
@@ -200,12 +202,9 @@ ALTER_LIMIT_LOG = ('Лимит расчётов пользователя {user} 
 COMMAND_ERROR = 'Ошибка при выполнении команды'
 
 
-async def is_authorized(message: Message,
-                        apply_join: bool = False) -> TelegramUser:
+async def is_authorized(message: Message) -> TelegramUser:
 
-    tg_user = await TelegramUser.authenticate(message.from_user.id,
-                                              apply_join=apply_join,
-                                              no_throw=True)
+    tg_user = await authorize(message.from_user.id)
 
     if tg_user is not None:
         return tg_user
@@ -228,6 +227,8 @@ def is_file_valid(document: Document) -> bool:
     if document.file_size > config.max_file_size:
         return False
     if document.file_name is None:
+        return False
+    if len(document.file_name) > 50:
         return False
     if FILENAME_RE.fullmatch(document.file_name) is None:
         return False
@@ -254,7 +255,7 @@ async def help_message(message: Message):
 
 @message_router.message(F.content_type.in_({'document'}))
 async def parse_file(message: Message):
-    tg_user = await is_authorized(message, apply_join=True)
+    tg_user = await is_authorized(message)
     if tg_user is None:
         return
 
@@ -301,11 +302,10 @@ async def parse_file(message: Message):
         return
 
     try:
-        calculation = await Calculation.new_calculation(
+        calculation = await new_calculation(
             name=basename + ext,
             command=runner.create_command(args, filename='{}'),
             user=tg_user.user,
-            submit_type=SubmitType.TELEGRAM,
             cluster=cluster)
 
     except CalculationLimitExceeded:
@@ -349,7 +349,7 @@ async def parse_file(message: Message):
 
 @message_router.message(Command(commands=['upd']))
 async def update_data(message: Message):
-    tg_user = await is_authorized(message, apply_join=True)
+    tg_user = await is_authorized(message)
     if tg_user is None:
         return
 
@@ -357,12 +357,13 @@ async def update_data(message: Message):
         await message.answer(UPDATE_HELP_MESSAGE)
         return
 
-    person = tg_user.user.person  # type: Person
+    person: Person = tg_user.user.person
     if person.approved:
         await message.answer(UPDATE_ALREADY_APPROVED)
         return
 
-    first_name, last_name, organization = await person.update_from_raw_data(
+    first_name, last_name, organization = await update_person(
+        person_id=person.id,
         first_name=get_str_from_re(FIRST_NAME_RE, message.text, 1),
         last_name=get_str_from_re(LAST_NAME_RE, message.text, 1),
         organization=get_str_from_re(ORGANIZATION_RE, message.text, 1),
@@ -395,7 +396,7 @@ async def update_data(message: Message):
 
 
 @message_router.message(Command(commands=['approve']))
-async def approve_data(message: Message, command: CommandObject):
+async def approve_command(message: Message, command: CommandObject):
     if message.from_user.username != config.bot.admin_name[1:]:
         await message.answer(NOT_ALLOWED_COMMAND)
         return
@@ -406,7 +407,7 @@ async def approve_data(message: Message, command: CommandObject):
         await message.answer(APPROVE_HELP)
         return
 
-    user = await UserModel.approve(idx)
+    user = await approve_user(idx)
     if user is None:
         await message.answer(APPROVE_FAILED)
         return
@@ -423,7 +424,7 @@ async def approve_data(message: Message, command: CommandObject):
 
 
 @message_router.message(Command(commands=['block']))
-async def block_user(message: Message, command: CommandObject):
+async def block_command(message: Message, command: CommandObject):
     if message.from_user.username != config.bot.admin_name[1:]:
         await message.answer(NOT_ALLOWED_COMMAND)
         return
@@ -434,7 +435,7 @@ async def block_user(message: Message, command: CommandObject):
         await message.answer(BLOCK_HELP)
         return
 
-    user = await UserModel.block(idx)
+    user = await block_user(idx)
     if user is None:
         await message.answer(BLOCK_FAILED)
         return
@@ -450,7 +451,7 @@ async def block_user(message: Message, command: CommandObject):
 
 
 @message_router.message(Command(commands=['unblock']))
-async def unblock_user(message: Message, command: CommandObject):
+async def unblock_command(message: Message, command: CommandObject):
     if message.from_user.username != config.bot.admin_name[1:]:
         await message.answer(NOT_ALLOWED_COMMAND)
         return
@@ -461,7 +462,7 @@ async def unblock_user(message: Message, command: CommandObject):
         await message.answer(UNBLOCK_HELP)
         return
 
-    user = await UserModel.unblock(idx)
+    user = await unblock_user(idx)
     if user is None:
         await message.answer(UNBLOCK_FAILED)
         return
@@ -513,12 +514,12 @@ async def user_status(message: Message, command: CommandObject):
             await message.answer(STATUS_HELP)
             return
 
-        user = await get_tg_user_with_calcs(user_id=idx, since=month_ago)
+        user = await get_user_with_calcs(user_id=idx, since=month_ago)
         if user is None:
             await message.answer(STATUS_NOT_FOUND)
             return
     else:
-        user = await get_tg_user_with_calcs(message.from_user.id,
+        user = await get_user_with_calcs(tg_id=message.from_user.id,
                                             since=month_ago)
 
         if user is None:
@@ -539,7 +540,7 @@ async def user_status(message: Message, command: CommandObject):
 
 
 @message_router.message(Command(commands=['search']))
-async def search_user(message: Message, command: CommandObject):
+async def search_command(message: Message, command: CommandObject):
     if message.from_user.username != config.bot.admin_name[1:]:
         await message.answer(NOT_ALLOWED_COMMAND)
         return
@@ -568,7 +569,7 @@ async def search_user(message: Message, command: CommandObject):
 
 
 @message_router.message(Command(commands=['alter_limit']))
-async def alter_limit(message: Message, command: CommandObject):
+async def alter_limit_command(message: Message, command: CommandObject):
 
     if message.from_user.username != config.bot.admin_name[1:]:
         await message.answer(NOT_ALLOWED_COMMAND)
@@ -589,23 +590,15 @@ async def alter_limit(message: Message, command: CommandObject):
         await message.answer(ALTER_LIMIT_USAGE)
         return
 
-    user = await get_tg_user(user_id=idx)
+    user = await alter_limit(user_id=idx, limit=limit)
     if user is None:
         await message.answer(STATUS_NOT_FOUND)
-        return
-
-    try:
-        user.user.calculation_limit = limit
-        await user.user.save()
-
-    except Exception:
-        await message.answer(COMMAND_ERROR)
         return
 
     await message.answer(ALTER_LIMIT_NOTIFY.format(limit=limit))
     await log_message(
         message.bot,
-        ALTER_LIMIT_LOG.format(user=create_user_link(model=user),
+        ALTER_LIMIT_LOG.format(user=create_user_link(model=user.tg_user),
                                limit=limit,
                                admin=create_user_link(message.from_user)))
 

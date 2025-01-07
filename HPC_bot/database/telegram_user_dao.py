@@ -11,7 +11,7 @@ from HPC_bot.models.calculation import Calculation
 from HPC_bot.models.organization import Organization
 from HPC_bot.models.person import Person
 from HPC_bot.models.telegram_user import TelegramUser
-from HPC_bot.models.user import User
+from HPC_bot.models.user import AccessLevel, User
 
 
 class TelegramUserDAO(BaseDAO[TelegramUser]):
@@ -174,3 +174,18 @@ class TelegramUserDAO(BaseDAO[TelegramUser]):
             users.append(tg_user)
 
         return users
+
+    @classmethod
+    async def get_if_authorized(
+        cls, session: AsyncSession, tg_id: int, access_level: AccessLevel = None
+    ):
+        query = (
+            select(cls.model)
+            .join(User)
+            .where(cls.model.tg_id == tg_id)
+            .where(
+                User.access_level <= access_level if access_level is not None else True
+            )
+        )
+        result = await session.scalars(query)
+        return result.one_or_none()

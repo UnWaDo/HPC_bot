@@ -17,24 +17,24 @@ class TelegramUser(BaseDBModel):
     user_id: Mapped[int] = mapped_column(ForeignKey('hpc_user.id'))
     user: Mapped[User] = relationship(back_populates='tg_user', lazy='joined', join_depth=2)
 
-    @staticmethod
-    async def authenticate(tg_id: int,
-                           no_throw: bool = False,
-                           apply_join: bool = False) -> 'TelegramUser':
-        async with sessionmaker() as session:
-            async with session.begin():
+    # @staticmethod
+    # async def authenticate(tg_id: int,
+    #                        no_throw: bool = False,
+    #                        apply_join: bool = False) -> 'TelegramUser':
+    #     async with sessionmaker() as session:
+    #         async with session.begin():
 
-                options = None
-                if apply_join:
-                    options = [joinedload(TelegramUser.user)]
+    #             options = None
+    #             if apply_join:
+    #                 options = [joinedload(TelegramUser.user)]
 
-                user = await session.get(TelegramUser, tg_id, options=options)
+    #             user = await session.get(TelegramUser, tg_id, options=options)
 
-        if user is not None:
-            return user
+    #     if user is not None:
+    #         return user
 
-        if not no_throw:
-            raise UnauthorizedAccessError(
-                f'User with id {tg_id} is unauthorized')
+    #     if not no_throw:
+    #         raise UnauthorizedAccessError(
+    #             f'User with id {tg_id} is unauthorized')
 
-        return user
+    #     return user

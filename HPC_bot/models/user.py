@@ -18,6 +18,7 @@ APPROVED_BASE_LIMIT = 50
 
 
 class AccessLevel:
+    BLOCKED = 9999
     NEWLY_REGISTERED = 1000
     APPROVED = 900
 

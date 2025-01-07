@@ -1,6 +1,8 @@
+from typing import Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from HPC_bot.database.base_dao import BaseDAO
+from HPC_bot.database.organization_dao import OrganizationDAO
 from HPC_bot.models.organization import Organization
 from HPC_bot.models.person import Person
 
@@ -17,7 +19,7 @@ class PersonDAO(BaseDAO[Person]):
     ):
 
         data = {}
-        result = [None, None, None]
+        result: Tuple[str, str, str] = [None, None, None]
 
         if first_name is not None:
             first_name = first_name.strip()
@@ -39,7 +41,7 @@ class PersonDAO(BaseDAO[Person]):
             return None
 
         if organization is not None and organization != "":
-            organizations = await Organization.find_similar(organization)
+            organizations = await OrganizationDAO.find_similar(session, organization)
 
             if len(organizations) == 1:
                 if (obj.organization is None) or (
@@ -54,6 +56,6 @@ class PersonDAO(BaseDAO[Person]):
         if any(x is not None and x != "" for x in result):
             data["approved"] = False
 
-            await cls.update(session, obj_id, data)
+            await cls.update(session, obj_id, **data)
 
         return tuple(result)

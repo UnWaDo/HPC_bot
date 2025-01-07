@@ -353,3 +353,4 @@ config.json
 .vscode
 organizations.csv
 *.db
+database_config.yml

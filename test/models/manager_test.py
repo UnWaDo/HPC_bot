@@ -16,7 +16,7 @@ from HPC_bot.models.calculation import (
     SubmitType,
 )
 from HPC_bot.models.person import Person
-from HPC_bot.models.user import NEWLY_REGISTERED_LIMIT, User
+from HPC_bot.models.user import NEWLY_REGISTERED_LIMIT, AccessLevel, User
 
 
 @pytest_asyncio.fixture
@@ -301,3 +301,26 @@ async def test_telegram_get_with_calcs(
             assert user.num_calc == 1
 
     assert tg_users[-1].num_calc == 0
+
+
+@pytest.mark.asyncio
+async def test_authorize(session, users):
+    user = await TelegramUserDAO.get_if_authorized(session, users[0]["tg_id"])
+    assert user is not None
+
+    user = await TelegramUserDAO.get_if_authorized(
+        session, users[0]["tg_id"], AccessLevel.ADMIN
+    )
+    assert user is None
+
+    user = await TelegramUserDAO.get_if_authorized(session, -1000)
+    assert user is None
+
+
+@pytest.mark.asyncio
+async def test_join_when_getting_tg_user(session, users):
+    user = await TelegramUserDAO.get_by_id(session, users[0]["tg_id"])
+
+    assert user is not None
+    assert user.user.person.first_name == users[0]["first_name"]
+    assert user.user.person.last_name == users[0]["last_name"]
