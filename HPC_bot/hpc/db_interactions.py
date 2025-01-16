@@ -10,7 +10,7 @@ from HPC_bot.models.calculation import Calculation, CalculationStatus
 
 
 @db_connection
-async def get_calculations_by_status(status: CalculationStatus, session: AsyncSession):
+async def get_calculations_by_status(session: AsyncSession, status: CalculationStatus):
     return await CalculationDAO.get_by_status(session, status)
 
 
@@ -25,7 +25,7 @@ async def get_finished_calculations(session: AsyncSession):
 
 
 @db_connection
-async def update_calculations(calculations: List[Calculation], session: AsyncSession):
+async def update_calculations(session: AsyncSession, calculations: List[Calculation]):
     for calculation in calculations:
         session.add(calculation)
 
@@ -33,7 +33,7 @@ async def update_calculations(calculations: List[Calculation], session: AsyncSes
 
 
 @db_connection
-async def update_clusters(clusters: List[Cluster], session: AsyncSession):
+async def update_clusters(session: AsyncSession, clusters: List[Cluster]):
     existing_clusters = await ClusterDAO.get_all(session)
 
     new_clusters = []

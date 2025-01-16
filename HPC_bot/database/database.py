@@ -1,10 +1,10 @@
 import logging
 from enum import Enum
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Concatenate, Optional, ParamSpec, TypeVar
 
 import yaml
 from pydantic import BaseModel, SecretStr, model_validator
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncSession
 
 from HPC_bot.hpc.connection import Connection
 
@@ -101,15 +101,18 @@ finally:
 engine = create_async_engine(db_config.db_url, echo=db_config.echo)
 sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
 
-RT = TypeVar("RT")  # return type
+TParam = ParamSpec("TParam")
+TRet = TypeVar("TRet")
 
 
-def db_connection(method: Callable[..., RT]) -> Callable[..., RT]:
+def db_connection(
+    method: Callable[Concatenate[AsyncSession, TParam], TRet],
+) -> Callable[TParam, TRet]:
 
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs) -> TRet:
         async with sessionmaker() as session:
             try:
-                return await method(*args, session=session, **kwargs)
+                return await method(session, *args, **kwargs)
 
             except Exception as e:
                 await session.rollback()

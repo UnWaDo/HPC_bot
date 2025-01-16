@@ -14,12 +14,12 @@ from HPC_bot.models.user import User
 
 
 @db_connection
-async def authorize(tg_id: int, session: AsyncSession):
+async def authorize(session: AsyncSession, tg_id: int):
     return await TelegramUserDAO.get_by_id(session, tg_id)
 
 
 @db_connection
-async def register(tg_id: int, first_name: str, last_name: str, session: AsyncSession):
+async def register(session: AsyncSession, tg_id: int, first_name: str, last_name: str):
     return await TelegramUserDAO.register(session, tg_id, first_name, last_name)
 
 
@@ -29,7 +29,7 @@ async def get_finished_calculations(session: AsyncSession):
 
 
 @db_connection
-async def update_calculations(calculations: List[Calculation], session: AsyncSession):
+async def update_calculations(session: AsyncSession, calculations: List[Calculation]):
     for calculation in calculations:
         session.add(calculation)
 
@@ -38,7 +38,7 @@ async def update_calculations(calculations: List[Calculation], session: AsyncSes
 
 @db_connection
 async def new_calculation(
-    name: str, command: str, user: User, cluster: Cluster, session: AsyncSession
+    session: AsyncSession, name: str, command: str, user: User, cluster: Cluster
 ):
     return await CalculationDAO.new_calculation(
         session, name, command, user, SubmitType.TELEGRAM, cluster
@@ -47,8 +47,8 @@ async def new_calculation(
 
 @db_connection
 async def update_person(
-    person_id: int,
     session: AsyncSession,
+    person_id: int,
     first_name: str = None,
     last_name: str = None,
     organization: str = None,
@@ -59,17 +59,17 @@ async def update_person(
 
 
 @db_connection
-async def block_user(user_id: int, session: AsyncSession):
+async def block_user(session: AsyncSession, user_id: int):
     return await UserDAO.block(session, user_id)
 
 
 @db_connection
-async def unblock_user(user_id: int, session: AsyncSession):
+async def unblock_user(session: AsyncSession, user_id: int):
     return await UserDAO.unblock(session, user_id)
 
 
 @db_connection
-async def approve_user(user_id: int, session: AsyncSession):
+async def approve_user(session: AsyncSession, user_id: int):
     return await UserDAO.approve(session, user_id)
 
 
@@ -92,7 +92,10 @@ async def get_user_with_calcs(
 
 @db_connection
 async def search_users(
-    last_name: str, first_name: str, organization: str, session: AsyncSession
+    session: AsyncSession,
+    last_name: str,
+    first_name: str,
+    organization: str,
 ):
     return await TelegramUserDAO.search_users(
         session, last_name, first_name, organization
@@ -100,5 +103,5 @@ async def search_users(
 
 
 @db_connection
-async def alter_limit(user_id: int, limit: int, session: AsyncSession):
+async def alter_limit(session: AsyncSession, user_id: int, limit: int):
     return await UserDAO.update(session, user_id, limit=limit)
