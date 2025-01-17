@@ -101,4 +101,4 @@ async def search_users(
 
 @db_connection
 async def alter_limit(user_id: int, limit: int, session: AsyncSession):
-    return await UserDAO.update(session, user_id, limit=limit)
+    return await UserDAO.update(session, user_id, calculation_limit=limit)
