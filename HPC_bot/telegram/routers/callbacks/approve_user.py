@@ -49,7 +49,9 @@ async def approve_users_callback(callback: CallbackQuery):
 
 
 @approve_users_callback_router.callback_query(
-    PageCallbackFactory.filter(F.keyboard == "users_approve" and F.action == "forward")
+    PageCallbackFactory.filter(
+        (F.keyboard == "users_approve") & (F.action == "forward")
+    )
 )
 async def approve_users_next_page(
     callback: CallbackQuery, callback_data: PageCallbackFactory
@@ -63,7 +65,7 @@ async def approve_users_next_page(
 
 
 @approve_users_callback_router.callback_query(
-    PageCallbackFactory.filter(F.keyboard == "users_approve" and F.action == "back")
+    PageCallbackFactory.filter((F.keyboard == "users_approve") & (F.action == "back"))
 )
 async def approve_users_back_page(
     callback: CallbackQuery, callback_data: PageCallbackFactory

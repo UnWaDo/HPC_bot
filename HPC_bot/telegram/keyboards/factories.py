@@ -74,13 +74,13 @@ class ObjectActionCallback(CallbackData, prefix=""):
         router.callback_query.register(
             next_page,
             PageCallbackFactory.filter(
-                F.keyboard == keyboard_name and F.action == "forward"
+                (F.keyboard == keyboard_name) & (F.action == "forward")
             ),
         )
         router.callback_query.register(
             first_page,
             PageCallbackFactory.filter(
-                F.keyboard == keyboard_name and F.action == "back"
+                (F.keyboard == keyboard_name) & (F.action == "back")
             ),
         )
         router.callback_query.register(
