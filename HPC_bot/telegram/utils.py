@@ -2,6 +2,8 @@ from typing import Optional, Pattern
 from aiogram import Bot
 from aiogram.types import User
 
+from HPC_bot.models.organization import Organization
+
 from ..models import TelegramUser as TgUserModel
 from ..utils import config
 
@@ -58,3 +60,11 @@ def get_str_from_re(regex: Pattern,
         return None
 
     return matched.group(group)
+
+def format_organization(organization: Organization) -> str:
+    if organization is None:
+        name = "(неизвестно)"
+    else:
+        name = organization.name
+
+    return name

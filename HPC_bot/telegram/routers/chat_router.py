@@ -6,9 +6,9 @@ from aiogram.filters import JOIN_TRANSITION, LEAVE_TRANSITION
 from HPC_bot.database.telegram_user_dao import TelegramUserDAO
 from HPC_bot.telegram.db_interactions import authorize, register
 
-from .utils import log_message, create_user_link
-from ..utils import config
-from ..models import TelegramUser
+from HPC_bot.telegram.utils import log_message, create_user_link
+from HPC_bot.utils import config
+from HPC_bot.models import TelegramUser
 
 chat_router = Router()
 chat_router.message.filter(F.chat.type != 'private')

@@ -29,3 +29,6 @@ class Person(BaseDBModel):
     )
 
     user: Mapped["User"] = relationship(back_populates="person")
+
+    def __str__(self):
+        return f"{self.last_name} {self.first_name} ({self.organization.abbreviation if self.organization else 'неизвестно'})"

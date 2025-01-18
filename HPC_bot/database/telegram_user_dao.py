@@ -184,7 +184,9 @@ class TelegramUserDAO(BaseDAO[TelegramUser]):
             .join(User)
             .where(cls.model.tg_id == tg_id)
             .where(
-                User.access_level <= access_level if access_level is not None else True
+                User.access_level <= access_level.value
+                if access_level is not None
+                else True
             )
         )
         result = await session.scalars(query)

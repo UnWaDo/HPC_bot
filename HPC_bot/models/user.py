@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, List, Sequence
 
 from sqlalchemy import ForeignKey, func, select
@@ -17,13 +18,34 @@ NEWLY_REGISTERED_LIMIT = 5
 APPROVED_BASE_LIMIT = 50
 
 
-class AccessLevel:
+class AccessLevel(Enum):
     BLOCKED = 9999
     NEWLY_REGISTERED = 1000
     APPROVED = 900
 
     MODERATOR = 100
     ADMIN = 0
+
+    def __ge__(self, other):
+        if isinstance(other, int):
+            return self.value <= other
+
+        if not isinstance(other, AccessLevel):
+            return NotImplemented
+
+        return self.value <= other.value
+
+    def __gt__(self, other):
+        if isinstance(other, int):
+            return self.value < other
+
+        if not isinstance(other, AccessLevel):
+            return NotImplemented
+
+        return self.value < other.value
+
+    __lt__ = lambda self, other: not (self >= other)
+    __le__ = lambda self, other: not (self > other)
 
 
 class User(BaseDBModel):
@@ -49,3 +71,6 @@ class User(BaseDBModel):
             return self.calculations
 
         return list(filter(lambda x: x.start_datetime >= since, self.calculations))
+
+    def __str__(self):
+        return f"#{self.id} {self.person}"

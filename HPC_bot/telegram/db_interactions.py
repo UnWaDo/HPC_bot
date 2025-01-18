@@ -105,3 +105,32 @@ async def search_users(
 @db_connection
 async def alter_limit(session: AsyncSession, user_id: int, limit: int):
     return await UserDAO.update(session, user_id, limit=limit)
+
+
+@db_connection
+async def get_unapproved_filled_users(
+    session: AsyncSession,
+    limit: int = None,
+    last_id: int = None,
+):
+    return await UserDAO.get_unapproved_filled_users(
+        session=session, limit=limit, last_id=last_id
+    )
+
+
+@db_connection
+async def get_blocked_users(
+    session: AsyncSession, limit: int = None, last_id: int = None
+):
+    return await UserDAO.get_blocked_users(
+        session=session, limit=limit, last_id=last_id
+    )
+
+
+@db_connection
+async def get_nonblocked_users(
+    session: AsyncSession, limit: int = None, last_id: int = None
+):
+    return await UserDAO.get_nonblocked_users(
+        session=session, limit=limit, last_id=last_id
+    )
