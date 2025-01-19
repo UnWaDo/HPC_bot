@@ -1,12 +1,8 @@
 from HPC_bot.models.user import AccessLevel
 from HPC_bot.telegram.db_interactions import approve_user
 from HPC_bot.telegram.filters.user_access_filter import UserAccessFilter
-from HPC_bot.telegram.keyboards.admin_panel import (
-    ADMIN_KEYBOARD,
-)
 from HPC_bot.telegram.keyboards.approve_user import build_approve_user_keyboard
 from HPC_bot.telegram.keyboards.factories import (
-    PageCallbackFactory,
     UsersActionCallback,
 )
 from HPC_bot.telegram.routers.responses_text import (
@@ -29,63 +25,10 @@ approve_users_callback_router.callback_query.filter(
     UserAccessFilter(AccessLevel.MODERATOR),
 )
 
-
-@approve_users_callback_router.callback_query(F.data == "users_approve")
-async def approve_users_callback(callback: CallbackQuery):
-    keyboard = await build_approve_user_keyboard()
-
-    if keyboard is None:
-        if callback.message.text != ADMIN_NO_PEOPLE_TO_APPROVE:
-            await callback.message.edit_text(
-                ADMIN_NO_PEOPLE_TO_APPROVE, reply_markup=ADMIN_KEYBOARD
-            )
-        return await callback.answer(ADMIN_NO_PEOPLE_TO_APPROVE)
-
-    await callback.message.edit_text(
-        "Выберите пользователя для подтверждения",
-        reply_markup=keyboard,
-    )
-    await callback.answer()
+approve_callback = UsersActionCallback(action="approve")
 
 
-@approve_users_callback_router.callback_query(
-    PageCallbackFactory.filter(
-        (F.keyboard == "users_approve") & (F.action == "forward")
-    )
-)
-async def approve_users_next_page(
-    callback: CallbackQuery, callback_data: PageCallbackFactory
-):
-    keyboard = await build_approve_user_keyboard(last_id=callback_data.offset)
-
-    if keyboard is None:
-        return await callback.answer("Больше пользователей нет")
-
-    await callback.message.edit_reply_markup(reply_markup=keyboard)
-
-
-@approve_users_callback_router.callback_query(
-    PageCallbackFactory.filter((F.keyboard == "users_approve") & (F.action == "back"))
-)
-async def approve_users_back_page(
-    callback: CallbackQuery, callback_data: PageCallbackFactory
-):
-    keyboard = await build_approve_user_keyboard()
-
-    if keyboard is None:
-        await callback.message.edit_text(
-            ADMIN_NO_PEOPLE_TO_APPROVE, reply_markup=ADMIN_KEYBOARD
-        )
-        await callback.answer("Больше пользователей нет")
-        return
-
-    await callback.message.edit_reply_markup(reply_markup=keyboard)
-
-
-@approve_users_callback_router.callback_query(
-    UsersActionCallback.filter(F.action == "approve")
-)
-async def approve_user_callback(
+async def approve_user_handler(
     callback: CallbackQuery, callback_data: UsersActionCallback
 ):
     user = await approve_user(callback_data.object_id)
@@ -104,3 +47,12 @@ async def approve_user_callback(
             calc_limit=user.calculation_limit,
         ),
     )
+
+
+approve_callback.create_keyboard_handlers(
+    approve_users_callback_router,
+    build_approve_user_keyboard,
+    ADMIN_NO_PEOPLE_TO_APPROVE,
+    "Выберите пользователя для блокировки",
+    approve_user_handler,
+)
