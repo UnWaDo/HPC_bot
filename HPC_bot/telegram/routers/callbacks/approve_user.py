@@ -53,6 +53,6 @@ approve_callback.create_keyboard_handlers(
     approve_users_callback_router,
     build_approve_user_keyboard,
     ADMIN_NO_PEOPLE_TO_APPROVE,
-    "Выберите пользователя для блокировки",
+    "Выберите пользователя для одобрения",
     approve_user_handler,
 )
