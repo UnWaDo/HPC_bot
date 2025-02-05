@@ -103,7 +103,7 @@ class Connection(BaseModel):
         try:
             await self.ssh_client.run('pwd')
 
-        except (asyncssh.ProcessError, asyncssh.misc.asyncssh.ChannelOpenError) as e:
+        except (asyncssh.ProcessError, asyncssh.misc.ChannelOpenError) as e:
             return False
 
         return True
