@@ -20,7 +20,7 @@ async def build_pages_keyboard(
     limit: int = 10,
     last_id: int = None,
 ):
-    objects = await loader(limit, last_id)
+    objects = await loader(limit=limit, last_id=last_id)
 
     if not objects:
         return None

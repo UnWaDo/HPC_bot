@@ -35,34 +35,6 @@ class TelegramUserDAO(BaseDAO[TelegramUser]):
         return tg_user
 
     @classmethod
-    async def search_users(
-        cls,
-        session: AsyncSession,
-        last_name: str = None,
-        first_name: str = None,
-        organization: str = None,
-    ):
-
-        query = select(TelegramUser).join(User).join(Person)
-
-        if last_name is not None:
-            query = query.where(Person.last_name.ilike(last_name))
-
-        if first_name is not None:
-            query = query.where(Person.first_name.ilike(first_name))
-
-        if organization is not None:
-            query = query.where(
-                or_(
-                    Organization.name.ilike(organization),
-                    Organization.abbreviation.ilike(organization),
-                )
-            )
-
-        result = await session.scalars(query)
-        return result.all()
-
-    @classmethod
     async def get_tg_user(
         cls, session: AsyncSession, tg_id: int = None, user_id: int = None
     ):

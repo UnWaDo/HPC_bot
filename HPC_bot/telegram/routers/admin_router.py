@@ -41,7 +41,7 @@ from HPC_bot.telegram.routers.responses_text import (
     UNBLOCK_OK,
     USER_STATUS,
 )
-from HPC_bot.telegram.routers.user_router import not_authorized, user_router
+from HPC_bot.telegram.routers.user_router import not_authorized
 from HPC_bot.telegram.utils import create_user_link, log_message
 from HPC_bot.utils import config, get_month_start
 
@@ -166,13 +166,13 @@ async def search_command(message: Message, command: CommandObject):
     )
     users_str = []
     for i, user in enumerate(users):
-        org = user.user.person.organization
+        org = user.person.organization
         if org is None:
             org_name = "(неизвестно)"
         else:
             org_name = org.abbreviation
 
-        users_str.append(f"{i + 1}. {create_user_link(model=user)} ({org_name})")
+        users_str.append(f"{i + 1}. {create_user_link(model=user.tg_user)} ({org_name})")
     await message.answer(
         SEARCH_USERS.format(count=len(users_str), users="\n".join(users_str))
     )

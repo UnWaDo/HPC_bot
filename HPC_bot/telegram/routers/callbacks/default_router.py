@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 
 from HPC_bot.telegram.keyboards.admin_panel import ADMIN_KEYBOARD
 from HPC_bot.telegram.keyboards.factories import PageCallbackFactory
-
+from aiogram.exceptions import TelegramBadRequest
 
 default_callback_router = Router()
 
@@ -18,13 +18,27 @@ async def cancel_callback(callback: CallbackQuery):
 
 @default_callback_router.callback_query(F.data == "admin_panel_close")
 async def close_panel_callback(callback: CallbackQuery):
-    await callback.message.delete()
-    await callback.answer()
+    try:
+        await callback.message.delete()
+        await callback.answer()
+
+    except TelegramBadRequest:
+        await callback.answer("Telegram не позволяет удалять старые сообщения")
 
 
 @default_callback_router.callback_query(PageCallbackFactory.filter(F.action == "no"))
 async def page_no_change_callback(callback: CallbackQuery):
     await callback.answer()
+
+
+@default_callback_router.callback_query(F.data == "delete_message")
+async def delete_message_callback(callback: CallbackQuery):
+    try:
+        await callback.message.delete()
+        await callback.answer()
+
+    except TelegramBadRequest:
+        await callback.answer("Telegram не позволяет удалять старые сообщения")
 
 
 @default_callback_router.callback_query()

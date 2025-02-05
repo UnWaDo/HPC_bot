@@ -17,6 +17,9 @@ class TelegramUser(BaseDBModel):
     user_id: Mapped[int] = mapped_column(ForeignKey('hpc_user.id'))
     user: Mapped[User] = relationship(back_populates='tg_user', lazy='joined', join_depth=2)
 
+    @property
+    def id(self):
+        return self.tg_id
     # @staticmethod
     # async def authenticate(tg_id: int,
     #                        no_throw: bool = False,

@@ -93,12 +93,14 @@ async def get_user_with_calcs(
 @db_connection
 async def search_users(
     session: AsyncSession,
-    last_name: str,
-    first_name: str,
-    organization: str,
+    last_name: str = None,
+    first_name: str = None,
+    organization: str = None,
+    limit: int = None,
+    last_id: int = None,
 ):
-    return await TelegramUserDAO.search_users(
-        session, last_name, first_name, organization
+    return await UserDAO.search_users(
+        session, last_name, first_name, organization, limit, last_id
     )
 
 
@@ -134,3 +136,8 @@ async def get_nonblocked_users(
     return await UserDAO.get_nonblocked_users(
         session=session, limit=limit, last_id=last_id
     )
+
+
+@db_connection
+async def get_user_by_id(session: AsyncSession, user_id: int):
+    return await UserDAO.get_by_id(session, user_id)
