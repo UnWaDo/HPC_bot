@@ -324,3 +324,14 @@ async def test_join_when_getting_tg_user(session, users):
     assert user is not None
     assert user.user.person.first_name == users[0]["first_name"]
     assert user.user.person.last_name == users[0]["last_name"]
+
+
+@pytest.mark.asyncio
+async def test_update_user_limit(session, approved_user):
+    limit = approved_user.calculation_limit
+
+    assert limit != 0
+    await UserDAO.update(session, approved_user.id, calculation_limit=limit * 2)
+
+    user = await UserDAO.get_by_id(session, approved_user.id)
+    assert limit * 2 == user.calculation_limit
