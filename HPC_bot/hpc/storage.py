@@ -6,6 +6,7 @@ from .connection import Connection
 
 
 class RemoteStorage(BaseModel):
+    rclone_config: str = None
     remote_name: str
     webdav: Connection
     base_path: str
@@ -14,12 +15,16 @@ class RemoteStorage(BaseModel):
         if remote_path is None:
             remote_path = os.path.basename(local_path)
 
-        proc = await asyncio.create_subprocess_exec(
-            "rclone",
-            "copy",
-            local_path,
-            f"{self.remote_name}:/{self.base_path}/{remote_path}",
+        args = ["rclone"]
+        if self.rclone_config is not None:
+            args.append("--config")
+            args.append(self.rclone_config)
+        args.extend(
+            ["copy", local_path, f"{self.remote_name}:/{self.base_path}/{remote_path}"]
         )
+
+        proc = await asyncio.create_subprocess_exec(*args)
+
         result = await proc.wait()
         if result != 0:
             raise RuntimeError("Failed to upload to remote")
