@@ -60,7 +60,7 @@ FIRST_NAME_RE = re.compile(r"имя:? (.+?)(,|$|\n)", re.IGNORECASE)
 LAST_NAME_RE = re.compile(r"фамилия:? (.+?)(,|$|\n)", re.IGNORECASE)
 ORGANIZATION_RE = re.compile(r"организация:? (.+?)(,|$|\n)", re.IGNORECASE)
 
-FILENAME_RE = re.compile(r"[\w.\-_]+\.[\w]+")
+FILENAME_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9.\-_]*")
 
 
 async def is_authorized(message: Message) -> TelegramUser:
