@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pydantic import BaseModel
 
@@ -5,6 +6,7 @@ from .connection import Connection
 
 
 class RemoteStorage(BaseModel):
+    remote_name: str
     webdav: Connection
     base_path: str
 
@@ -12,13 +14,20 @@ class RemoteStorage(BaseModel):
         if remote_path is None:
             remote_path = os.path.basename(local_path)
 
-        await self.webdav.put_by_webdav(local_path,
-                                        f'{self.base_path}/{remote_path}')
+        proc = await asyncio.create_subprocess_exec(
+            "rclone",
+            "copy",
+            local_path,
+            f"{self.remote_name}:/{self.base_path}/{remote_path}",
+        )
+        result = await proc.wait()
+        if result != 0:
+            raise RuntimeError("Failed to upload to remote")
 
         return remote_path
 
     async def get_shared(self, path: str) -> str:
-        return await self.webdav.get_shared_link(f'{self.base_path}/{path}')
+        return await self.webdav.get_shared_link(f"{self.base_path}/{path}")
 
     async def get(self, remote_path: str, local_path: str) -> str:
         webdav = self.webdav.open_webdav()
